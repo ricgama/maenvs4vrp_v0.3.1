@@ -668,6 +668,8 @@ class Environment(AECEnv):
         cur_demands = self.td_state['nodes']['cur_demands'].gather(1, action)
         current_load = self.td_state['cur_agent']['cur_load']
         load_transfer = torch.minimum(cur_demands, current_load)
+        # delivered quantity, recorded in the solution
+        self.td_state['cur_agent']['cur_delivery'] = torch.where(action.eq(self.td_state['depot_idx']), 0., load_transfer)
 
         self.td_state['cur_agent']['cur_load'] -= load_transfer
 
@@ -753,6 +755,11 @@ class Environment(AECEnv):
             self.td_state['solution','agents'] = torch.concat( [self.td_state['solution','agents'], self.td_state['cur_agent_idx']], dim=-1)
         else:
             self.td_state['solution','agents'] = self.td_state['cur_agent_idx']
+
+        if 'deliveries' in self.td_state['solution'].keys():
+            self.td_state['solution','deliveries'] = torch.concat( [self.td_state['solution','deliveries'], self.td_state['cur_agent','cur_delivery']], dim=-1)
+        else:
+            self.td_state['solution','deliveries'] = self.td_state['cur_agent','cur_delivery']
 
     def step(self, td: TensorDict) -> TensorDict:
         """
@@ -869,10 +876,12 @@ class Environment(AECEnv):
         curr_time = torch.zeros(*self.batch_size, dtype=torch.float32, device=self.device)
         curr_load = torch.zeros(*self.batch_size, dtype=torch.float32, device=self.device)
         visited_nodes = torch.zeros(*self.batch_size, self.num_nodes, dtype=torch.int64, device=self.device)
-        remaining_demand = self.td_state['demands'].clone()  # Track remaining demand for split deliveries
+        delivered = torch.zeros_like(self.td_state['demands'])  # Total quantity delivered to each node
 
         sorted_indices = torch.argsort(self.td_state['solution']['agents'], dim=-1, stable=True)
         sorted_data = torch.gather(self.td_state['solution']['actions'], dim=-1, index=sorted_indices)
+        # quantities delivered at each visit, as recorded by the environment
+        sorted_deliveries = torch.gather(self.td_state['solution']['deliveries'], dim=-1, index=sorted_indices)
 
         for ii in range(sorted_data.size(1)):
             next_node = sorted_data[:, ii]
@@ -899,13 +908,15 @@ class Environment(AECEnv):
             assert torch.all(service_startj <= tw_high), "Service started after allowed time window."
             assert torch.all(service_startj + service_time + time2depot <= end_time.unsqueeze(-1)), "Cannot finish service and return to depot in time."
 
-            # Capacity constraint: can split demand, but cannot exceed vehicle capacity
-            node_demand = gather_by_index(remaining_demand, next_node)
-            load_transfer = torch.minimum(node_demand, self.td_state['capacity'] - curr_load)
-            assert torch.all(load_transfer <= self.td_state['capacity']), "Agent exceeded vehicle capacity."
+            # Capacity constraint: demand can be split, but the load of a route cannot exceed the vehicle capacity
+            load_transfer = sorted_deliveries[:, ii]
+            assert torch.all(load_transfer >= 0), "Delivered a negative quantity."
+            assert torch.all(load_transfer[next_node == 0] == 0), "Delivered a quantity at the depot."
+            assert torch.all(curr_load + load_transfer <= self.td_state['capacity'].squeeze(-1) + 1e-6), "Agent exceeded vehicle capacity."
 
-            # Update remaining demand for the node
-            remaining_demand.scatter_(1, next_node.unsqueeze(-1), node_demand - load_transfer)
+            # Split deliveries cannot exceed the demand of the node
+            delivered.scatter_add_(1, next_node.unsqueeze(-1), load_transfer.unsqueeze(-1))
+            assert torch.all(delivered <= self.td_state['demands'] + 1e-6), "Delivered more than the demand of a node."
 
             # Mark node as visited (can be visited multiple times for split delivery)
             fill = visited_nodes.gather(1, next_node.unsqueeze(-1))

@@ -29,8 +29,8 @@ class Environment(AECEnv):
         - each customer can only be visited after its appearance time.
         - each customer is visited exactly once.
         - each vehicle cannot exceed its capacity at any point.
-        - service at each node must begin within its time window; early arrivals wait.
-        - each vehicle must return to the depot before the depot's time window closes.
+        - time windows are soft: early arrivals wait, and late arrivals are allowed but penalized
+          proportionally to the lateness (``late_penalty``).
         - a vehicle is considered done when it returns to the depot.
 
     Finish Condition:
@@ -761,6 +761,12 @@ class Environment(AECEnv):
         else:
             self.td_state['solution','agents'] = self.td_state['cur_agent_idx']
 
+        # sampled (stochastic) travel times, needed to replay the schedule
+        if 'travel_times' in self.td_state['solution'].keys():
+            self.td_state['solution','travel_times'] = torch.concat( [self.td_state['solution','travel_times'], self.td_state['cur_agent','cur_travel_time']], dim=-1)
+        else:
+            self.td_state['solution','travel_times'] = self.td_state['cur_agent','cur_travel_time'].clone()
+
 
     def step(self, td: TensorDict) -> TensorDict:
         """
@@ -872,23 +878,40 @@ class Environment(AECEnv):
             AssertionError: If the solution violates a problem constraint.
         """
 
-        curr_node = torch.zeros(*self.batch_size, dtype=torch.int64, device=self.device)
-        curr_time = torch.zeros(*self.batch_size, dtype=torch.float32, device=self.device)
+        start_time = self.td_state['start_time'].view(-1)
+        curr_time = start_time.clone()
         visited_nodes = torch.zeros(*self.batch_size, self.num_nodes, dtype=torch.int64, device=self.device)
+        late_penalty = torch.zeros(*self.batch_size, dtype=torch.float32, device=self.device)
 
         sorted_indices = torch.argsort(self.td_state['solution']['agents'], dim=-1, stable=True)
         sorted_data = torch.gather(self.td_state['solution']['actions'], dim=-1, index=sorted_indices)
+        # travel times were sampled stochastically during the episode: replay the recorded ones
+        sorted_travel_times = torch.gather(self.td_state['solution']['travel_times'], dim=-1, index=sorted_indices)
         demand = self.td_state['demands'].gather(1, sorted_data)
 
         for ii in range(sorted_data.size(1)):
             next_node = sorted_data[:, ii]
+            is_depot = next_node == 0
 
-            curr_loc = gather_by_index(self.td_state['coords'], curr_node)
-            next_loc = gather_by_index(self.td_state['coords'], next_node)
+            # Dynamic customers can only be served once they have appeared
+            appear_time = gather_by_index(self.td_state['appear_time'], next_node)
+            assert torch.all(is_depot | (appear_time <= curr_time)), "Customer was visited before it appeared."
+
+            # Soft time windows: early arrivals wait, late arrivals are penalized
+            arrivej = curr_time + sorted_travel_times[:, ii]
+            tw_low = gather_by_index(self.td_state['tw_low'], next_node)
+            tw_high = gather_by_index(self.td_state['tw_high'], next_node)
+            waitj = torch.clip(tw_low - arrivej, min=0)
+            late_penalty = late_penalty - self.late_penalty * torch.clip(arrivej - tw_high, min=0)
+            curr_time = arrivej + waitj + gather_by_index(self.td_state['service_time'], next_node)
+            curr_time = torch.where(is_depot, start_time, curr_time)
 
             # Mark node as visited
             fill = visited_nodes.gather(1, next_node.unsqueeze(-1))
             visited_nodes.scatter_(1, next_node.unsqueeze(-1), fill + 1)
+
+        recorded_penalty = self.td_state['agents']['cum_penalty'].sum(-1)
+        assert torch.allclose(late_penalty, recorded_penalty, atol=1e-4), "Late arrival penalties do not match the time windows."
 
         visited_nodes_exc_depot = visited_nodes[:, 1:]
         assert torch.all((visited_nodes_exc_depot == 0) | (visited_nodes_exc_depot == 1)), "Nodes were visited more than once!"

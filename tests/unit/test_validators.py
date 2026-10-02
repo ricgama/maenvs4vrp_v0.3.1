@@ -12,10 +12,6 @@ from tests.helpers import AEC_ENVS, make_env, nodes_for, rollout
 
 # split deliveries legitimately visit a node more than once
 REVISITS_ALLOWED = {"sdvrptw"}
-# the split delivery validator computes the delivered load as min(demand, free capacity), so it cannot exceed capacity
-CAPACITY_NOT_CHECKED = {"sdvrptw"}
-# stochastic travel times are not stored in the solution, so the validator cannot replay the schedule
-TIME_WINDOWS_NOT_CHECKED = {"dsvrptw"}
 # prize collecting problems do not have to serve every customer, and dynamic customers may appear too late
 PARTIAL_SERVICE_ENVS = {"pcvrp", "pcvrptw", "top", "toptw", "dvrptw", "dsvrptw"}
 
@@ -80,30 +76,34 @@ def test_validator_rejects_repeated_visits(env_name, capsys):
     assert idle, "the episode has no unused agent"
     agent = idle[-1]
     depot = int(state["agents"]["depot_idx"][0, agent]) if "depot_idx" in state["agents"].keys() else 0
+    if "appear_time" in state.keys():  # dynamic customers: pick one known from the start
+        customers = customers[state["appear_time"][0, customers] <= 0]
+        assert customers.numel(), "no served customer appeared at the start"
     customer = int(customers[0])
     route = [customer]
     if "is_pickup" in state.keys():
         customer = int(customers[state["is_pickup"][0, customers]][0])
         route = [customer, int(state["delivery_idx"][0, customer])]
     route.append(depot)
+    num_steps = solution["actions"].shape[-1]
+    for key in list(solution.keys()):  # other per-step records (e.g. travel times) get zeros
+        if key not in ("actions", "agents") and solution[key].shape[-1] == num_steps:
+            solution[key] = torch.cat([solution[key], torch.zeros((1, len(route)), dtype=solution[key].dtype)], dim=-1)
     solution["actions"] = torch.cat([solution["actions"], torch.tensor([route])], dim=-1)
     solution["agents"] = torch.cat([agents, torch.full((1, len(route)), agent)], dim=-1)
     assert_rejected(env, "more than once", capsys)
 
 
-@pytest.mark.parametrize("env_name", [pytest.param(e, marks=pytest.mark.xfail(
-    strict=True, reason="split delivery validator caps the load at the capacity")) if e in CAPACITY_NOT_CHECKED else e
-    for e in CAPACITY_ENVS])
+@pytest.mark.parametrize("env_name", CAPACITY_ENVS)
 def test_validator_rejects_capacity_violation(env_name, capsys):
     env, _ = served_episode(env_name)
     env.td_state["capacity"] = env.td_state["capacity"] * 1e-3
     assert_rejected(env, "(?i)capacity", capsys)
 
 
-@pytest.mark.parametrize("env_name", [pytest.param(e, marks=pytest.mark.xfail(
-    strict=True, reason="stochastic travel times are not replayed")) if e in TIME_WINDOWS_NOT_CHECKED else e
-    for e in TIME_WINDOW_ENVS])
+@pytest.mark.parametrize("env_name", TIME_WINDOW_ENVS)
 def test_validator_rejects_time_window_violation(env_name, capsys):
+    # dsvrptw has soft time windows: lateness is allowed, but the recorded penalties no longer match
     env, _ = served_episode(env_name)
     state, customers = env.td_state, customers_mask(env)
     if "time_windows" in state.keys():
@@ -129,6 +129,29 @@ def test_pdptw_validator_rejects_undelivered_pickup(capsys):
     solution["actions"] = solution["actions"][:, keep]
     solution["agents"] = solution["agents"][:, keep]
     assert_rejected(env, "without delivering a pickup", capsys)
+
+
+def test_sdvrptw_validator_rejects_delivery_above_demand(capsys):
+    env, customers = served_episode("sdvrptw")
+    state = env.td_state
+    customer = customers[0]
+    state["demands"][0, customer] = state["solution"]["deliveries"][0, state["solution"]["actions"][0] == customer].sum() / 2
+    assert_rejected(env, "more than the demand", capsys)
+
+
+def test_sdvrptw_deliveries_match_served_demand():
+    env = make_env("sdvrptw", batch_size=4)
+    torch.manual_seed(0)
+    rollout(env, "select", num_agents=3, num_nodes=11, seed=0)
+    state, solution = env.td_state, env.td_state["solution"]
+    delivered = torch.zeros_like(state["demands"]).scatter_add_(1, solution["actions"], solution["deliveries"])
+    assert torch.allclose(delivered + state["nodes"]["cur_demands"], state["demands"])
+
+
+def test_dsvrptw_validator_rejects_customer_before_appearance(capsys):
+    env, customers = served_episode("dsvrptw")
+    env.td_state["appear_time"][0, customers[0]] = 1e6
+    assert_rejected(env, "before it appeared", capsys)
 
 
 @pytest.mark.parametrize("mode", ["select", "agent_node", "joint", "node_agent"])
