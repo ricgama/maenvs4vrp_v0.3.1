@@ -28,6 +28,7 @@ class Environment(AECEnv):
         - each tour starts and ends at the depot.
         - each request is a pickup-delivery pair that must be served by the same vehicle.
         - the pickup node must be visited before the corresponding delivery node in the same route.
+        - a vehicle can only return to the depot after delivering every load it picked up.
         - each vehicle cannot carry a load exceeding its capacity at any point.
         - service at each node must begin within its time window.
         - each vehicle must return to the depot before the depot's time window closes.
@@ -328,6 +329,8 @@ class Environment(AECEnv):
                                     batch_size=batch_size, device=self.device)
 
         self.td_state['solution'] = TensorDict({}, batch_size=batch_size)
+        # actions sampled right after reset must already respect the time windows and pending deliveries
+        self._update_all_agents_feasibility()
 
         if self.agent_selector is not None:
             self.agent_selector.set_env(self)
@@ -505,12 +508,96 @@ class Environment(AECEnv):
         td = self.observe(td, obs_list)
         return td
 
+    def _travel_time(self, x, y):
+        """
+        Travel time between two tensors of points, rounded like the environment state.
+
+        Args:
+            x (torch.Tensor): Origin points [..., 2].
+            y (torch.Tensor): Destination points [..., 2].
+
+        Returns:
+            torch.Tensor: Travel times [...].
+        """
+        time = get_distance(x, y) / self.td_state['speed'].view(-1, *[1] * (x.dim() - 2))
+        if self.n_digits is not None:
+            time = torch.floor(self.n_digits * time) / self.n_digits
+        return time
+
+    def _pending_deliveries_feasibility(self, cur_node_idx, cur_time, pending):
+        """
+        Check, for every candidate node, that after visiting it the agent can still serve all its pending
+        deliveries and return to the depot before the end time. Pending deliveries are served in order of
+        ``(tw_high, node index)``. Since this order is fixed, the first pending delivery always passes the check,
+        so an agent carrying load always has a feasible action.
+
+        Args:
+            cur_node_idx (torch.Tensor): Current node of each agent [B, X].
+            cur_time (torch.Tensor): Current time of each agent [B, X].
+            pending (torch.Tensor): Pending deliveries of each agent [B, X, N].
+
+        Returns:
+            torch.Tensor: Feasibility of each candidate node [B, X, N].
+        """
+        B, X, N = pending.shape
+        coords = self.td_state['coords']
+        tw_low, tw_high = self.td_state['tw_low'], self.td_state['tw_high']
+        service_time = self.td_state['service_time']
+        nodes = torch.arange(N, device=self.device)
+
+        def at(attr, idx):
+            # attr [B, N] gathered at idx [B, ...]
+            return attr.gather(1, idx.reshape(B, -1)).view(idx.shape)
+
+        def loc_of(idx):
+            return coords.gather(1, idx.reshape(B, -1, 1).expand(-1, -1, 2)).view(*idx.shape, 2)
+
+        # state after visiting each candidate node
+        cur_loc = loc_of(cur_node_idx)
+        time = cur_time.unsqueeze(-1) + self._travel_time(cur_loc.unsqueeze(2), coords.unsqueeze(1))
+        time = torch.max(time, tw_low.unsqueeze(1)) + service_time.unsqueeze(1)
+        loc = coords.unsqueeze(1).expand(B, X, N, 2)
+        feasible = torch.ones((B, X, N), dtype=torch.bool, device=self.device)
+
+        def serve(mask, node):
+            nonlocal time, loc, feasible
+            node_loc = loc_of(node)
+            start = torch.max(time + self._travel_time(loc, node_loc), at(tw_low, node))
+            feasible = feasible & (~mask | (start <= at(tw_high, node)))
+            time = torch.where(mask, start + at(service_time, node), time)
+            loc = torch.where(mask.unsqueeze(-1), node_loc, loc)
+
+        # a pickup candidate adds its own delivery to the pending deliveries
+        own = self.td_state['is_pickup'].unsqueeze(1).expand(B, X, N)
+        own_node = self.td_state['delivery_idx'].unsqueeze(1).expand(B, X, N)
+        own_key = at(tw_high, own_node)
+        inserted = torch.zeros_like(own)
+
+        key = torch.where(pending, tw_high.unsqueeze(1), torch.inf)
+        order = torch.argsort(key, dim=-1, stable=True)
+        count = pending.sum(-1)
+        for i in range(int(count.max()) + 1):
+            p_valid = (count > i).unsqueeze(-1)
+            p = order[..., min(i, N - 1)].unsqueeze(-1).expand(B, X, N)
+            p_key = at(tw_high, p)
+            own_first = own & ~inserted & (~p_valid | (own_key < p_key) | ((own_key == p_key) & (own_node < p)))
+            serve(own_first, own_node)
+            inserted = inserted | own_first
+            # a delivery candidate is already served
+            serve(p_valid & (p != nodes), p)
+
+        depot_loc = self.td_state['depot_loc'].unsqueeze(1)
+        feasible = feasible & (time + self._travel_time(loc, depot_loc) <= self.td_state['end_time'].view(B, 1, 1))
+        return feasible
+
     def _update_curr_agent_feasibility(self):
         """
         Update actions feasibility.
         """
 
-        _mask = self.td_state['nodes']['active_nodes_mask'].clone() * self.td_state['cur_agent']['action_mask'].clone()
+        # deliveries are only available to the agent that made the pickup
+        pending = self.td_state['cur_agent']['pending_deliveries']
+        _mask = self.td_state['nodes']['active_nodes_mask'].clone() * (~self.td_state['is_delivery'] | pending)
 
         # time windows constraints
         loc = self.td_state['coords'].gather(1, self.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
@@ -529,8 +616,13 @@ class Environment(AECEnv):
         c2 = service_startj + self.td_state['service_time'] + self.td_state['time2depot'] <= self.td_state['end_time'].unsqueeze(-1)
         # capacity constraints
         c3 = self.td_state['cur_agent']['cur_load'] + self.td_state['demands'] <= self.td_state['capacity']
+        # pending deliveries constraints
+        c4 = self._pending_deliveries_feasibility(self.td_state['cur_agent']['cur_node_idx'],
+                                                  ptime, pending.unsqueeze(1)).squeeze(1)
 
-        _mask = _mask * c1 * c2 * c3
+        _mask = _mask * c1 * c2 * c3 * c4
+        # the depot is only available once every pickup has been delivered
+        _mask.scatter_(1, self.td_state['depot_idx'], ~pending.any(-1, keepdim=True) | self.td_state['done'].view(-1, 1))
         # update state
         self.td_state['cur_agent'].update({'action_mask': _mask})
         self.td_state['agents']['action_mask'].scatter_(1,
@@ -540,10 +632,10 @@ class Environment(AECEnv):
         """
         Update actions feasibility for all agents simultaneously.
         """
-        # Base mask from agents['action_mask'] (includes pending deliveries state)
+        # Base mask: active nodes, deliveries only available to the agent that made the pickup
         # [B, num_agents, num_nodes]
         _mask = self.td_state['nodes']['active_nodes_mask'].unsqueeze(1).expand(-1, self.num_agents, -1).clone()
-        _mask = _mask * self.td_state['agents']['action_mask']
+        _mask = _mask * (~self.td_state['is_delivery'].unsqueeze(1) | self.td_state['agents']['pending_deliveries'])
 
         # cur_node_idx: [B, num_agents] -> locs: [B, num_agents, 2]
         cur_node_idx = self.td_state['agents']['cur_node_idx']
@@ -580,7 +672,11 @@ class Environment(AECEnv):
         c3 = (self.td_state['agents']['cur_load'].unsqueeze(-1) +
               self.td_state['demands'].unsqueeze(1)) <= self.td_state['capacity'].unsqueeze(1)  # [B, num_agents, num_nodes]
 
-        _mask = _mask * c1 * c2 * c3
+        # c4: pending deliveries — same as _update_curr_agent_feasibility
+        c4 = self._pending_deliveries_feasibility(cur_node_idx, self.td_state['agents']['cur_time'],
+                                                  self.td_state['agents']['pending_deliveries'])
+
+        _mask = _mask * c1 * c2 * c3 * c4
 
         # post-process: depot, inactive agents, done
         _mask = self._post_process_mask(_mask)
@@ -594,9 +690,10 @@ class Environment(AECEnv):
         batch_size = self.td_state.batch_size
         active_agents = self.td_state['agents']['active_agents_mask']          # [B, num_agents]
 
-        # Depot must always be open for active agents
+        # Depot is open for active agents once every pickup has been delivered
         depot_idx_exp = self.td_state['depot_idx'].unsqueeze(1).expand(*batch_size, self.num_agents, 1)  # [B, A, 1]
-        mask.scatter_(2, depot_idx_exp, active_agents.unsqueeze(-1))
+        no_pending = ~self.td_state['agents']['pending_deliveries'].any(-1)
+        mask.scatter_(2, depot_idx_exp, (active_agents & no_pending).unsqueeze(-1))
 
         # Zero out inactive agents
         active_expanded = active_agents.unsqueeze(-1).expand(-1, -1, self.num_nodes)
@@ -941,6 +1038,8 @@ class Environment(AECEnv):
                 assert torch.all(valid_delivery[is_delivery[:, ii]]), "Delivery attempted before pickup."
                 # Mark delivery as completed
                 pending_deliveries.scatter_(1, next_node.unsqueeze(-1), torch.zeros_like(is_delivery[:, ii].unsqueeze(-1)))
+            # Every pickup must be delivered before returning to the depot
+            assert not pending_deliveries[next_node == 0].any(), "Agent returned to the depot without delivering a pickup."
 
             # Mark node as visited
             fill = visited_nodes.gather(1, next_node.unsqueeze(-1))
@@ -953,5 +1052,6 @@ class Environment(AECEnv):
             curr_time[next_node == 0] = 0.0
             curr_load[next_node == 0] = 0.0
 
+        assert not pending_deliveries.any(), "Agent returned to the depot without delivering a pickup."
         visited_nodes_exc_depot = visited_nodes[:, 1:]
         assert torch.all((visited_nodes_exc_depot == 0) | (visited_nodes_exc_depot == 1)), "Nodes were visited more than once!"

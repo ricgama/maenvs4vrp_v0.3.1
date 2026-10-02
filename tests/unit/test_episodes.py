@@ -1,11 +1,8 @@
-"""Episode-level properties: determinism, reward consistency and validator sensitivity."""
+"""Episode-level properties: determinism and reward consistency (validators are tested in test_validators.py)."""
 import pytest
 import torch
 
 from tests.helpers import AEC_ENVS, PARALLEL_ENVS, make_env, nodes_for, rollout
-
-# split deliveries legitimately visit a node more than once
-REVISITS_ALLOWED = {"sdvrptw"}
 
 
 def play(env_name, reward="DenseReward", actions=None, seed=0):
@@ -43,25 +40,6 @@ def test_dense_and_sparse_rewards_agree(env_name):
     _, actions, dense_total = play(env_name, reward="DenseReward")
     _, _, sparse_total = play(env_name, reward="SparseReward", actions=actions)
     assert torch.allclose(dense_total, sparse_total, atol=1e-3), (dense_total, sparse_total)
-
-
-@pytest.mark.parametrize("env_name", [e for e in AEC_ENVS if e not in REVISITS_ALLOWED])
-def test_validator_rejects_repeated_visits(env_name):
-    env = make_env(env_name, batch_size=1)
-    for seed in range(10):  # find an episode that serves at least one customer
-        torch.manual_seed(seed)
-        rollout(env, "select", num_agents=2, num_nodes=nodes_for(env_name, 11), seed=seed)
-        solution = env.td_state["solution"]
-        actions, agents = solution["actions"], solution["agents"]
-        customers = actions[actions >= getattr(env, "num_depots", 1)]
-        if customers.numel():
-            break
-    env.check_solution_validity()
-    customer = customers[0].reshape(1, 1)
-    solution["actions"] = torch.cat([actions, customer], dim=-1)
-    solution["agents"] = torch.cat([agents, agents[:, :1]], dim=-1)
-    with pytest.raises(AssertionError):
-        env.check_solution_validity()
 
 
 @pytest.mark.parametrize("env_name", PARALLEL_ENVS)

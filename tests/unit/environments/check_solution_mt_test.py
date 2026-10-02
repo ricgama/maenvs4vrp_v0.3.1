@@ -42,7 +42,7 @@ def test_solution_without_agent_selector(env_name, mode, sizes):
 def test_solution_variant_presets(env_name, variant, sizes):
     env = make_env(env_name)
     rollout(env, "select", num_agents=sizes.num_agents[0], num_nodes=sizes.num_nodes[0],
-            batch_size=sizes.batch_size, variant_preset=variant)
+            batch_size=sizes.batch_size, device=sizes.device, variant_preset=variant)
     env.check_solution_validity()
 
 

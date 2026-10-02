@@ -1274,27 +1274,11 @@ class Environment(AECEnv):
             valid_length = (curr_length <= self.td_state['distance_limits'].squeeze(-1)) | \
                            torch.isclose(curr_length, self.td_state['distance_limits'].squeeze(-1), atol=eps, rtol=0.0)
             if not valid_length.all():
-                idx = torch.nonzero(~valid_length, as_tuple=False).squeeze(-1)
-                offending_batches = idx.tolist() if idx.numel() > 0 else []
+                offending_batches = torch.nonzero(~valid_length, as_tuple=False).squeeze(-1).tolist()
                 offending_length = curr_length[~valid_length].tolist()
-                offending_limit  = self.td_state['distance_limits'].squeeze(-1)[~valid_length].tolist()
-               # DETAILED DEBUG BEFORE RAISE
-                for b in offending_batches:
-                    print("=== CHECK-SOLUTION DISTANCE VIOLATION DEBUG ===")
-                    print(f"step={ii} batch={b} next_node={int(next_node[b].item())} agent={int(agent_idx_seq[b].item())}")
-                    print("  dist (rounded):", float(dist[b].item()))
-                    print("  curr_length(after add):", float(curr_length[b].item()))
-                    print("  distance_limit:", float(self.td_state['distance_limits'].squeeze(-1)[b].item()))
-                    try:
-                        print("  agents.route_length (state):", self.td_state['agents']['route_length'][b].tolist())
-                        print("  cur_agent.cur_route_length (if any):", self.td_state.get('cur_agent', {}).get('cur_route_length', 'N/A'))
-                    except Exception:
-                        pass
-                    print("  open_routes:", bool(self.td_state['open_routes'][b].item()) if self.td_state['open_routes'].dim()>0 else bool(self.td_state['open_routes'].item()))
-                    print("  agent_depot:", int(agent_depot[b].item()))
-                    print("  n_digits:", self.n_digits)
-                    print("==============================================")
-                raise AssertionError(f"Route length exceeds distance limit. step={ii}, batches={offending_batches}")
+                offending_limit = self.td_state['distance_limits'].squeeze(-1)[~valid_length].tolist()
+                raise AssertionError(f"Route length exceeds distance limit. step={ii}, batches={offending_batches}, "
+                                     f"length={offending_length}, limit={offending_limit}")
 
             #is_next_node_depot = torch.isin(next_node, self.td_state['depot_idx'])
             is_next_node_depot = (next_node == agent_depot)
@@ -1307,16 +1291,13 @@ class Environment(AECEnv):
             valid_mask = (curr_time <= tw_high) | torch.isclose(curr_time, tw_high, atol=eps, rtol=0.0)
             violation_mask = ~valid_mask
             if violation_mask.any():
-                idx = torch.nonzero(violation_mask, as_tuple=False).squeeze(-1)
-                offending_batches = idx.tolist() if idx.numel() > 0 else []
+                offending_batches = torch.nonzero(violation_mask, as_tuple=False).squeeze(-1).tolist()
                 offending_nodes = next_node[violation_mask].tolist()
                 offending_curr_time = curr_time[violation_mask].tolist()
                 offending_tw_high = tw_high[violation_mask].tolist()
-                print(f"Time-window violation at step {ii}: batches {offending_batches}")
-                print(f"  next_node(s): {offending_nodes}")
-                print(f"  curr_time: {offending_curr_time}")
-                print(f"  tw_high:   {offending_tw_high}")
-                raise AssertionError(f"Agent must perform service before node's time window closes. step={ii}, batches={offending_batches}")
+                raise AssertionError(f"Agent must perform service before node's time window closes. step={ii}, "
+                                     f"batches={offending_batches}, nodes={offending_nodes}, "
+                                     f"time={offending_curr_time}, tw_high={offending_tw_high}")
 
             curr_time = curr_time + gather_by_index(self.td_state['service_time'], next_node)
             curr_node = next_node

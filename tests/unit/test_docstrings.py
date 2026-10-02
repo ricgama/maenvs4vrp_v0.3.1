@@ -23,9 +23,10 @@ def check_function(fn, qualname):
     problems = []
     public = not fn.name.startswith("_") or fn.name == "__init__"
     doc = ast.get_docstring(fn)
-    params = [a.arg for a in fn.args.posonlyargs + fn.args.args + fn.args.kwonlyargs if a.arg not in ("self", "cls")]
+    positional = [a.arg for a in fn.args.posonlyargs + fn.args.args if a.arg not in ("self", "cls")]
+    params = positional + [a.arg for a in fn.args.kwonlyargs]
     if fn.args.vararg:
-        params.insert(len(fn.args.posonlyargs + fn.args.args) - 1, "*" + fn.args.vararg.arg)
+        params.insert(len(positional), "*" + fn.args.vararg.arg)
     if fn.args.kwarg:
         params.append("**" + fn.args.kwarg.arg)
     if doc is None:

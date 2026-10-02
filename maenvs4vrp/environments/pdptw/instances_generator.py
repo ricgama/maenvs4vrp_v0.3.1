@@ -305,19 +305,23 @@ class InstanceGenerator(InstanceBuilder):
         delivery_coords = instance['coords'].gather(1, delivery_idx[:, :, None].expand(-1, -1, 2))
 
         dist_depot = torch.pairwise_distance(depot_coord, pickup_coords, keepdim = True)
+        dist_pickup_delivery = torch.pairwise_distance(delivery_coords, pickup_coords, keepdim = False)
+        dist_delivery_depot = torch.pairwise_distance(delivery_coords, depot_coord, keepdim = False)
         depot_start, depot_end = 0, 3
 
+        # a vehicle leaving the depot, serving the pickup at the center of its window and then the delivery,
+        # must be back at the depot by depot_end, so that every pair can be served
         inf = depot_start + dist_depot
-        sup = depot_end - dist_depot - self.service_times
+        sup = depot_end - dist_depot - dist_pickup_delivery.unsqueeze(-1) - dist_delivery_depot.unsqueeze(-1) - 2 * self.service_times
+        sup = torch.max(sup, inf)
         num_services = (self.num_nodes-1)//2
 
         time_centers = inf.squeeze(-1) + torch.rand(*batch_size, num_services, device=self.device) * (sup-inf).squeeze(-1)
-        time_half_width = torch.empty((*batch_size, num_services), device=self.device).uniform_(self.service_times / 2 , depot_end / 3)
+        # half widths of at least one service time keep the delivery window open after the pickup service
+        time_half_width = torch.empty((*batch_size, num_services), device=self.device).uniform_(self.service_times, depot_end / 3)
 
         time_windows[:,:,0] = time_windows[:,:,0].scatter(1, pickup_idx, torch.clip(time_centers - time_half_width, depot_start, depot_end))
         time_windows[:,:,1] = time_windows[:,:,1].scatter(1, pickup_idx, torch.clip(time_centers + time_half_width, depot_start, depot_end))
-
-        dist_pickup_delivery = torch.pairwise_distance(delivery_coords, pickup_coords, keepdim = False)
 
         time_windows[:,:,0] = time_windows[:,:,0].scatter(1, delivery_idx, torch.clip(time_centers + dist_pickup_delivery - time_half_width, depot_start, depot_end))
         time_windows[:,:,1] = time_windows[:,:,1].scatter(1, delivery_idx, torch.clip(time_centers + dist_pickup_delivery + time_half_width, depot_start, depot_end))

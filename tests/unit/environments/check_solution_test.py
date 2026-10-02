@@ -38,5 +38,6 @@ def test_solution_large_instances(env_name, sizes):
     env = make_env(env_name)
     for num_nodes in [101, 501]:
         for num_agents in [20, 50]:
-            rollout(env, "select", num_agents=num_agents, num_nodes=nodes_for(env_name, num_nodes))
+            rollout(env, "select", num_agents=num_agents, num_nodes=nodes_for(env_name, num_nodes),
+                    device=sizes.device)
             env.check_solution_validity()

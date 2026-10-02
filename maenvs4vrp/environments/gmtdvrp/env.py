@@ -1331,14 +1331,11 @@ class Environment(AECEnv):
             valid_length = (curr_length <= self.td_state['distance_limits'].squeeze(-1)) | \
                            torch.isclose(curr_length, self.td_state['distance_limits'].squeeze(-1), atol=eps, rtol=0.0)
             if not valid_length.all():
-                idx = torch.nonzero(~valid_length, as_tuple=False).squeeze(-1)
-                offending_batches = idx.tolist() if idx.numel() > 0 else []
+                offending_batches = torch.nonzero(~valid_length, as_tuple=False).squeeze(-1).tolist()
                 offending_length = curr_length[~valid_length].tolist()
-                offending_limit  = self.td_state['distance_limits'].squeeze(-1)[~valid_length].tolist()
-                print(f"Distance limit violation at step {ii}: batches {offending_batches}")
-                print(f"  curr_length:     {offending_length}")
-                print(f"  distance_limits: {offending_limit}")
-                raise AssertionError(f"Route length exceeds distance limit. step={ii}, batches={offending_batches}")
+                offending_limit = self.td_state['distance_limits'].squeeze(-1)[~valid_length].tolist()
+                raise AssertionError(f"Route length exceeds distance limit. step={ii}, batches={offending_batches}, "
+                                     f"length={offending_length}, limit={offending_limit}")
 
             is_next_node_depot = torch.isin(next_node, self.td_state['depot_idx'])
             curr_length[is_next_node_depot] = 0.0 #Reset length for depot
@@ -1350,16 +1347,13 @@ class Environment(AECEnv):
             valid_mask = (curr_time <= tw_high) | torch.isclose(curr_time, tw_high, atol=eps, rtol=0.0)
             violation_mask = ~valid_mask
             if violation_mask.any():
-                idx = torch.nonzero(violation_mask, as_tuple=False).squeeze(-1)
-                offending_batches = idx.tolist() if idx.numel() > 0 else []
+                offending_batches = torch.nonzero(violation_mask, as_tuple=False).squeeze(-1).tolist()
                 offending_nodes = next_node[violation_mask].tolist()
                 offending_curr_time = curr_time[violation_mask].tolist()
                 offending_tw_high = tw_high[violation_mask].tolist()
-                print(f"Time-window violation at step {ii}: batches {offending_batches}")
-                print(f"  next_node(s): {offending_nodes}")
-                print(f"  curr_time: {offending_curr_time}")
-                print(f"  tw_high:   {offending_tw_high}")
-                raise AssertionError(f"Agent must perform service before node's time window closes. step={ii}, batches={offending_batches}")
+                raise AssertionError(f"Agent must perform service before node's time window closes. step={ii}, "
+                                     f"batches={offending_batches}, nodes={offending_nodes}, "
+                                     f"time={offending_curr_time}, tw_high={offending_tw_high}")
 
             curr_time = curr_time + gather_by_index(self.td_state['service_time'], next_node)
             curr_node = next_node

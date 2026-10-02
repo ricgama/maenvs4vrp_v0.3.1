@@ -1232,28 +1232,6 @@ class Environment(AECEnv):
 
             curr_length = curr_length + dist * ~(self.td_state['open_routes'].squeeze(-1) & (next_node == 0)) #Update curr_length
 
-            dist_limit = self.td_state['distance_limits'].squeeze(-1)
-            violations = curr_length > dist_limit
-            if violations.any():
-                bad = violations.nonzero(as_tuple=True)[0]
-                print(f"\n[check_solution_validity] step={ii}  DISTANCE LIMIT VIOLATIONS in {bad.numel()} batch rows:")
-                for row in bad[:5].tolist():  # show first 5 violations
-                    print(f"  row={row}"
-                          f"  curr_length={curr_length[row]:.6f}"
-                          f"  dist_limit={dist_limit[row]:.6f}"
-                          f"  excess={curr_length[row]-dist_limit[row]:.6f}"
-                          f"  step_dist={dist[row]:.6f}"
-                          f"  curr_node={curr_node[row].item()}"
-                          f"  next_node={next_node[row].item()}"
-                          f"  open_route={self.td_state['open_routes'].squeeze(-1)[row].item()}")
-                    # show agent responsible for this step
-                    agent_at_step = self.td_state['solution']['agents'][row, ii].item()
-                    print(f"  agent_at_step={agent_at_step}"
-                          f"  route_length_in_state={self.td_state['agents']['route_length'][row, agent_at_step]:.6f}"
-                          f"  max_distance_limit={self.td_state['distance_limits'][row].squeeze().item():.6f}")
-                assert False, "Route length exceeds distance limit."
-
-
             assert torch.all(curr_length <= self.td_state['distance_limits'].squeeze(-1)), "Route length exceeds distance limit."
             curr_length[next_node == 0] = 0.0 #Reset length for depot
 

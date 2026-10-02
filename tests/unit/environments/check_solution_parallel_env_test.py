@@ -20,9 +20,9 @@ def test_solution(env_name, sizes):
 
 @pytest.mark.slow
 @pytest.mark.parametrize("env_name", PARALLEL_ENVS)
-def test_solution_large_instances(env_name):
+def test_solution_large_instances(env_name, sizes):
     env = make_env(env_name, group="parallel_environments")
     for num_nodes in [101, 1001]:
         for num_agents in [20, 50]:
-            rollout(env, "parallel", num_agents=num_agents, num_nodes=num_nodes)
+            rollout(env, "parallel", num_agents=num_agents, num_nodes=num_nodes, device=sizes.device)
             env.check_solution_validity()
