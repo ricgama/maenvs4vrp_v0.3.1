@@ -1,3 +1,4 @@
+"""Benchmark instance generator for the MTDVRP environment."""
 import torch
 from tensordict import TensorDict
 import os
@@ -30,11 +31,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         """
         Get list of possible instances from benchmark files.
 
-        Args:
-            n/a.
-
         Returns:
-            None.
+            dict: Keys 'Solomon' and 'Homberger'; values are lists of instance.
+                  name strings, or empty lists when data is not available locally.
         """
 
         cls.download_and_copy_instances()
@@ -54,7 +53,15 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             inst_dic[pset] = data_files
         return inst_dic
 
+    @staticmethod
     def check_instance_folders(base_dir, env):
+        """
+        Warn about missing benchmark instance files.
+
+        Args:
+            base_dir (str): Base directory of the environments package.
+            env (str): Environment name.
+        """
         base_benchmark_dir = os.path.join(base_dir, env, "data/benchmark")
 
         for variant in VARIANT_PRESETS:
@@ -71,12 +78,6 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
     def download_and_copy_instances(cls):
         """
         Download benchmark instances from HuggingFace if they are not locally present.
-
-        Args:
-            n/a.
-
-        Returns:
-            None.
         """
 
         base_dir = path.dirname(path.dirname(path.abspath(__file__)))
@@ -126,15 +127,14 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Constructor. Create an instance space of one or several sets of data.
 
         Args:
-            problem_type(set): Problem type. Defaults to "all".
-            instance_type(str): Instance type. It must be "50_test", "100_test", "50_validation" or "100_validation". Defaults to None.
-            set_of_instances(set): Set of instances paths. Defaults to None.
-            device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
-            batch_size(torch.Size, optional): Batch size. If not specified, defaults to 1000.
-            seed(int): Random number generator seed. Defaults to None.
-
-        Returns:
-            None.
+            problem_type (set, optional): Problem type. Defaults to "all".
+            instance_type (str, optional): Instance type. It must be "50_test", "100_test", "50_validation" or "100_validation". Defaults to None.
+            set_of_instances (set, optional): Set of instances file names. Defaults to None.
+            instance_name (str, optional): Instance name. Can be "Solomon" or "Homberger". Defaults to None.
+            list_of_instances (list, optional): List of instances file names. Defaults to None.
+            device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
+            batch_size (torch.Size, optional): Batch size. Defaults to 1000.
+            seed (int, optional): Random number generator seed. Defaults to None.
         """
 
         self.download_and_copy_instances() #If instances are not on local machine, they'll be downloaded from RouteFinder's HuggingFace
@@ -174,10 +174,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Load every instance on set_of_instances set.
 
         Args:
-            set_of_instances(set): Set of instances paths. Defaults to None.
-
-        Returns:
-            None.
+            set_of_instances (set, optional): Set of instances file names. Defaults to None.
         """
         if set_of_instances:
             self.set_of_instances = set_of_instances
@@ -192,7 +189,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Read instance data from file. Benchmark's instance keys are translated into our keys.
 
         Args:
-            instance_name(str): Instance path.
+            instance_name (str): Instance path.
 
         Returns:
             Dict: Instance data.
@@ -283,8 +280,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Get an instance with custom number of agents.
 
         Args:
-            instance_name(str): Instance path.
-            num_agents(int): Number of agents. Defaults to None.
+            instance_name (str): Instance file name.
+            num_agents (int, optional): Total number of agents. Defaults to None.
 
         Returns:
             Dict: Instance data.
@@ -331,32 +328,32 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Sample one instance from instance space, randomly adjusting the nodes.
 
         Args:
-            instance_name(str): Instance file path. Defaults to None.
-            num_depots(int): Total number of depots. Defaults to None.
-            num_agents(int): Total number of agents. Defaults to None.
-            num_nodes(int): Total number of nodes. Defaults to None.
-            min_coords(float): Minimum number of coords. Defaults to None.
-            max_coords(float): Maximum number of coords. Defaults to None.
-            capacity(int): Vehicles' capacity. Defaults to None.
-            service_time(float): Service time. Defaults to None.
-            min_demands(int): Minimum number of demands. Defaults to None.
-            max_demands(int): Maximum number of demands. Defaults to None.
-            min_backhaul(int): Minimum number of backhauls. Defaults to None.
-            max_backhaul(int): Maximum number of backhauls. Defaults to None.
-            max_time(float): Maximum route time. Defaults to None.
-            backhaul_ratio(float): Ratio of backhaul demands. Defaults to None.
-            backhaul_class(int): Class of backhaul problem. If 1, it's unmixed, if 2, it's mixed. Defaults to None.
-            sample_backhaul_class(bool): If backhaul class is sampled across batches. Defaults to False.
-            max_distance_limit(float): Route distance limits. Defaults to None.
-            speed(float): Vehicles' speed. Defaults to None.
-            initial_load(float): Vehicles' initial load. Defaults to None.
-            subsample(bool): If problem variants are to be sampled. Defaults to True.
-            variant_preset(str): Variant preset to be sampled. Defaults to None.
-            use_combinations(bool): It considers combinations for which sampling mask the instance is defined. Defaults to False.
-            force_visit(bool): It forces the agent to visit all feasible nodes before going back to depot. Defaults to True.
-            batch_size(torch.Size, optional): Batch size. Defaults to None.
-            seed(int): Random number generator seed. Defaults to None.
-            device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
+            instance_name (str, optional): Instance file path. Defaults to None.
+            num_depots (int, optional): Total number of depots. Defaults to None.
+            num_agents (int, optional): Total number of agents. Defaults to None.
+            num_nodes (int, optional): Total number of nodes. Defaults to None.
+            min_coords (float, optional): Minimum number of coords. Defaults to None.
+            max_coords (float, optional): Maximum number of coords. Defaults to None.
+            capacity (int, optional): Capacity of each agent. Defaults to None.
+            service_time (float, optional): Service time. Defaults to None.
+            min_demands (int, optional): Minimum number of demands. Defaults to None.
+            max_demands (int, optional): Maximum number of demands. Defaults to None.
+            min_backhaul (int, optional): Minimum number of backhauls. Defaults to None.
+            max_backhaul (int, optional): Maximum number of backhauls. Defaults to None.
+            max_time (float, optional): Maximum route time. Defaults to None.
+            backhaul_ratio (float, optional): Ratio of backhaul demands. Defaults to None.
+            backhaul_class (int, optional): Class of backhaul problem. If 1, it's unmixed, if 2, it's mixed. Defaults to None.
+            sample_backhaul_class (bool, optional): If backhaul class is sampled across batches. Defaults to False.
+            max_distance_limit (float, optional): Route distance limits. Defaults to None.
+            speed (float, optional): Vehicles' speed. Defaults to None.
+            initial_load (float, optional): Vehicles' initial load. Defaults to None.
+            subsample (bool, optional): If problem variants are to be sampled. Defaults to True.
+            variant_preset (str, optional): Variant preset to be sampled. Defaults to None.
+            use_combinations (bool, optional): It considers combinations for which sampling mask the instance is defined. Defaults to False.
+            force_visit (bool, optional): If True, agents must visit all feasible nodes before returning to the depot. Defaults to True.
+            batch_size (torch.Size, optional): Batch size. Defaults to None.
+            seed (int, optional): Random number generator seed. Defaults to None.
+            device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to None.
 
         Returns:
             Dict: Instance data.
@@ -440,7 +437,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Sample one instance from instance set.
 
         Args:
-            seed(int): Random number generator seed. Defaults to None.
+            seed (int, optional): Random number generator seed. Defaults to None.
 
         Returns:
             str: Instance sample name.
@@ -484,34 +481,34 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Sample one instance from instance space.
 
         Args:
-            sample_type(str): Type of instance to sample. It can be "random" or "augment". Defaults to "random".
-            instance_name(str): Instance file path. Defaults to None.
-            num_depots(int): Total number of depots. Defaults to None.
-            num_agents(int): Total number of agents. Defaults to None.
-            num_nodes(int): Total number of nodes. Defaults to None.
-            min_coords(float): Minimum number of coords. Defaults to None.
-            max_coords(float): Maximum number of coords. Defaults to None.
-            capacity(int): Vehicles' capacity. Defaults to None.
-            service_time(float): Service time. Defaults to None.
-            min_demands(int): Minimum number of demands. Defaults to None.
-            max_demands(int): Maximum number of demands. Defaults to None.
-            min_backhaul(int): Minimum number of backhauls. Defaults to None.
-            max_backhaul(int): Maximum number of backhauls. Defaults to None.
-            max_time(float): Maximum route time. Defaults to None.
-            backhaul_ratio(float): Ratio of backhaul demands. Defaults to None.
-            backhaul_class(int): Class of backhaul problem. If 1, it's unmixed, if 2, it's mixed. Defaults to None.
-            sample_backhaul_class(bool): If backhaul class is sampled across batches. Defaults to False.
-            max_distance_limit(float): Route distance limits. Defaults to None.
-            speed(float): Vehicles' speed. Defaults to None.
-            initial_load(float): Vehicles' initial load. Defaults to None.
-            subsample(bool): If problem variants are to be sampled. Defaults to True.
-            variant_preset(str): Variant preset to be sampled. Defaults to None.
-            use_combinations(bool): It considers combinations for which sampling mask the instance is defined. Defaults to False.
-            force_visit(bool): It forces the agent to visit all feasible nodes before going back to depot. Defaults to True.
-            batch_size(torch.Size, optional): Batch size. Defaults to None.
-            seed(int): Random number generator seed. Defaults to None.
-            n_augment(int, optional): Number of augmentations. Defaults to None.
-            device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
+            sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
+            instance_name (str, optional): Instance name. Defaults to None.
+            num_depots (int, optional): Total number of depots. Defaults to None.
+            num_agents (int, optional): Total number of agents. Defaults to None.
+            num_nodes (int, optional): Total number of nodes. Defaults to None.
+            min_coords (float, optional): Minimum number of coords. Defaults to None.
+            max_coords (float, optional): Maximum number of coords. Defaults to None.
+            capacity (int, optional): Capacity of each agent. Defaults to None.
+            service_time (float, optional): Service time. Defaults to None.
+            min_demands (int, optional): Minimum number of demands. Defaults to None.
+            max_demands (int, optional): Maximum number of demands. Defaults to None.
+            min_backhaul (int, optional): Minimum number of backhauls. Defaults to None.
+            max_backhaul (int, optional): Maximum number of backhauls. Defaults to None.
+            max_time (float, optional): Maximum route time. Defaults to None.
+            backhaul_ratio (float, optional): Ratio of backhaul demands. Defaults to None.
+            backhaul_class (int, optional): Class of backhaul problem. If 1, it's unmixed, if 2, it's mixed. Defaults to None.
+            sample_backhaul_class (bool, optional): If backhaul class is sampled across batches. Defaults to False.
+            max_distance_limit (float, optional): Route distance limits. Defaults to None.
+            speed (float, optional): Vehicles' speed. Defaults to None.
+            initial_load (float, optional): Vehicles' initial load. Defaults to None.
+            subsample (bool, optional): If problem variants are to be sampled. Defaults to True.
+            variant_preset (str, optional): Variant preset to be sampled. Defaults to None.
+            use_combinations (bool, optional): It considers combinations for which sampling mask the instance is defined. Defaults to False.
+            force_visit (bool, optional): If True, agents must visit all feasible nodes before returning to the depot. Defaults to True.
+            batch_size (torch.Size, optional): Batch size. Defaults to None.
+            seed (int, optional): Random number generator seed. Defaults to None.
+            n_augment (int, optional): Number of augmented copies of each instance (``batch_size`` must be divisible by it). Defaults to None.
+            device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to None.
 
         Returns:
             Dict: Instance data.

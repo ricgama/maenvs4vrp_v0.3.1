@@ -1,3 +1,4 @@
+"""Toy instance generator for the MTDVRP environment."""
 import torch
 from tensordict import TensorDict
 
@@ -46,11 +47,9 @@ class ToyInstanceGenerator(InstanceBuilder):
         Constructor. Toy instance generator for testing.
 
         Args:
-            instance_type(str):  instance type. Can be "validation" or "test". Defaults to "validation".
-            set_of_instances(set): Set of instances file names. Defaults to None.
-            device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
-            batch_size(torch.Size, optional): Batch size. If not specified, defaults to 1. Defaults to None.
-            seed(int): Random number generator seed. Defaults to None.
+            device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
+            batch_size (torch.Size, optional): Batch size. Defaults to None.
+            seed (int, optional): Random number generator seed. Defaults to None.
         """
 
         if seed is None:
@@ -80,15 +79,15 @@ class ToyInstanceGenerator(InstanceBuilder):
         Subsample variant. If variant_preset is specified, it loads that variant. Otherwise it samples variant's parameters across batches based on probabilities.
 
         Args:
-            prob_open_routes(float): Probability of open routes. Defaults to 0.5.
-            prob_time_windows(float): Probability of time windows. Defaults to 0.5.
-            prob_limit(float): Probability of distance limits. Defaults to 0.5.
-            prob_backhaul(float): Probability of backhaul. Defaults to 0.5.
-            td(TensorDict): Environment instance tensor. Defaults to None.
-            variant_preset(TensorDict): Variant preset. Defaults to None.
+            prob_open_routes (float, optional): Probability of open routes. Defaults to 0.5.
+            prob_time_windows (float, optional): Probability of time windows. Defaults to 0.5.
+            prob_limit (float, optional): Probability of distance limits. Defaults to 0.5.
+            prob_backhaul (float, optional): Probability of backhaul. Defaults to 0.5.
+            td (TensorDict, optional): Environment tensor instance. Defaults to None.
+            variant_preset (TensorDict, optional): Variant preset to be sampled. Defaults to None.
 
         Returns:
-            td(TensorDict): Environment instance tensor.
+            torch.Tensor: Environment instance tensor.
         """
 
         if variant_preset is not None:
@@ -171,20 +170,21 @@ class ToyInstanceGenerator(InstanceBuilder):
         Sample one instance from instance space.
 
         Args:
-            num_agents(int): Total number of agents. Defaults to 2.
-            num_nodes(int): Total number of nodes. Defaults to 15.
-            capacity(int): Capacity of the agents. Defaults to 50.
-            service_times(float): Service times in the nodes. Defaults to 0.2.
-            subsample(bool): If problem variants are to be sampled. Defaults to True.
-            variant_preset(str): Variant preset to be sampled. Defaults to None.
-            use_combinations(bool): It considers combinations for which sampling mask the instance is defined. Defaults to False.
-            force_visit(bool): It forces the agent to visit all feasible nodes before going back to depot. Defaults to True.
-            batch_size(torch.Size, optional): Batch size. Defaults to 1.
-            seed(int): Random number generator seed. Defaults to None.
-            device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
+            num_agents (int, optional): Total number of agents. Defaults to 2.
+            num_nodes (int, optional): Total number of nodes. Defaults to 15.
+            capacity (int, optional): Capacity of each agent. Defaults to 50.
+            service_time (float, optional): Service time. Defaults to 0.2.
+            subsample (bool, optional): If problem variants are to be sampled. Defaults to True.
+            variant_preset (str, optional): Variant preset to be sampled. Defaults to None.
+            use_combinations (bool, optional): It considers combinations for which sampling mask the instance is defined. Defaults to False.
+            force_visit (bool, optional): If True, agents must visit all feasible nodes before returning to the depot. Defaults to True.
+            batch_size (int, optional): Batch size. Defaults to 1.
+            seed (int, optional): Random number generator seed. Defaults to None.
+            device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
+            **kwargs: Extra keyword arguments accepted for API compatibility; ignored.
 
         Returns:
-            Dict: Instance data.
+            TensorDict: Instance data.
         """
 
         if seed is not None:

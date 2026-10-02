@@ -1,3 +1,4 @@
+"""Toy instance generator for the PCVRP parallel environment."""
 import torch
 from tensordict import TensorDict
 
@@ -25,11 +26,11 @@ class ToyInstanceGenerator(InstanceBuilder):
         Constructor. Toy instance generator for testing.
 
         Args:
-            instance_type(str):  instance type. Can be "validation" or "test". Defaults to "validation".
-            set_of_instances(set): Set of instances file names. Defaults to None.
-            device(str, optional): Type of processing. It can be "cpu" or "gpu". Defaults to "cpu".
-            batch_size(torch.Size, optional): Batch size. If not specified, defaults to 1. Defaults to None.
-            seed(int): Random number generator seed. Defaults to None.
+            instance_type (str, optional): instance type. Can be "validation" or "test". Defaults to "validation".
+            set_of_instances (set, optional): Set of instances file names. Defaults to None.
+            device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
+            batch_size (torch.Size, optional): Batch size. Defaults to None.
+            seed (int, optional): Random number generator seed. Defaults to None.
         """
 
         # seed the generation process
@@ -67,12 +68,13 @@ class ToyInstanceGenerator(InstanceBuilder):
         Generate random toy instance.
 
         Args:
-            num_agents(int): Total number of agents. Defaults to 4.
-            num_nodes(int): Total number of nodes. Defaults to 13.
-            capacity(int): Total capacity for each agent. Defaults to 10.
-            service_times(int): Service times in the nodes. Defaults to 0.2.
-            batch_size(int): Batch size. Defaults to 1.
-            seed(int, optional): Random number generator seed. Defaults to None.
+            num_agents (int, optional): Total number of agents. Defaults to 4.
+            num_nodes (int, optional): Total number of nodes. Defaults to 13.
+            capacity (int, optional): Capacity of each agent. Defaults to 10.
+            profits (str, optional): Type of profits to use. It can be 'constant', 'uniform' or 'distance'. Defaults to "constant".
+            service_times (int, optional): Service time in the nodes. Defaults to 0.2.
+            batch_size (int, optional): Batch size. Defaults to 1.
+            seed (int, optional): Random number generator seed. Defaults to None.
 
         Returns:
             TensorDict: Instance data.
@@ -159,15 +161,16 @@ class ToyInstanceGenerator(InstanceBuilder):
         Sample one instance from instance space.
 
         Args:
-            num_agents(int): Total number of agents. Defaults to None.
-            num_nodes(int): Total number of nodes. Defaults to None.
-            service_times(float): Service times in the nodes. Defaults to 0.2.
-            capacity(int): Capacity of the agents. Defaults to 10.
-            instance_name(str): Instance name. Defaults to None.
-            sample_type(str): Sample type. It can be "random" or something else for "first n". Defaults to "random".
-            batch_size(torch.Size, optional): Batch size. Defaults to None.
-            n_augment(int, optional): Data augmentation. Defaults to None.
-            seed(int): Random number generator seed. Defaults to None.
+            num_agents (int, optional): Total number of agents. Defaults to None.
+            num_nodes (int, optional): Total number of nodes. Defaults to None.
+            service_times (float, optional): Service time in the nodes. Defaults to 0.2.
+            capacity (int, optional): Capacity of each agent. Defaults to 10.
+            profits (str, optional): Type of profits to use. It can be 'constant', 'uniform' or 'distance'. Defaults to "constant".
+            instance_name (str, optional): Instance name. Defaults to None.
+            sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
+            batch_size (torch.Size, optional): Batch size. Defaults to None.
+            n_augment (int, optional): Number of augmented copies of each instance (``batch_size`` must be divisible by it). Defaults to None.
+            seed (int, optional): Random number generator seed. Defaults to None.
 
         Returns:
             Dict: Instance data.
