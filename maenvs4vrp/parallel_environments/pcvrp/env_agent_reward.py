@@ -38,8 +38,7 @@ class DenseReward(RewardFn):
             actions (torch.Tensor): [B, A] tensor with all agents' moves.
 
         Returns:
-            torch.Tensor: Reward.
-                penalty(torch.Tensor): Penalty.
+            tuple[torch.Tensor, torch.Tensor]: Reward and penalty, with shape [B, 1] each.
         """
 
         # Each agent's reward = negative travel time it spent on this step
@@ -102,8 +101,7 @@ class SparseReward(RewardFn):
             actions (torch.Tensor): [B, A] tensor with all agents' moves.
 
         Returns:
-            torch.Tensor: Reward.
-                penalty(torch.Tensor): Penalty.
+            tuple[torch.Tensor, torch.Tensor]: Reward and penalty, with shape [B, 1] each.
         """
 
         # Each agent's reward and penalty: [B, A]

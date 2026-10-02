@@ -65,6 +65,16 @@ class ToyInstanceGenerator(InstanceBuilder):
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
         self.batch_size = torch.Size(batch_size)
 
+        # defaults used when the environment passes None for a parameter
+        self.num_agents = 2
+        self.num_nodes = 15
+        self.capacity = 50
+        self.service_time = 0.2
+        self.subsample = True
+        self.variant_preset = None
+        self.use_combinations = False
+        self.force_visit = True
+
     def subsample_variant(
         self,
         prob_open_routes: float = 0.5,
@@ -213,6 +223,10 @@ class ToyInstanceGenerator(InstanceBuilder):
         if num_nodes is not None:
             self.num_nodes = num_nodes
 
+        if num_agents is not None:
+
+            self.num_agents = num_agents
+
         if capacity is not None:
             self.capacity = capacity
 
@@ -318,7 +332,7 @@ class ToyInstanceGenerator(InstanceBuilder):
         instance['tw_high'] = time_windows[:, :, 1]
 
         #Is depot
-        instance['is_depot'] = torch.zeros((*self.batch_size, num_nodes), dtype=torch.bool, device=self.device)
+        instance['is_depot'] = torch.zeros((*self.batch_size, coords.shape[1]), dtype=torch.bool, device=self.device)
         instance['is_depot'][:, self.depot_idx] = True
 
         #Start time and end time
@@ -335,15 +349,15 @@ class ToyInstanceGenerator(InstanceBuilder):
         instance['distance_limits'] = distance_limits
 
         instance_info = {'name': 'random_instance',
-                         'num_nodes': num_nodes,
-                         'num_agents': num_agents,
+                         'num_nodes': coords.shape[1],
+                         'num_agents': self.num_agents,
                          'data': instance}
 
         if self.subsample:
             instance_info = self.subsample_variant(td=instance_info, variant_preset=self.variant_preset)
-            return instance_info
+            return self._complete_instance(instance_info)
         else:
-            return instance_info
+            return self._complete_instance(instance_info)
 
     @staticmethod
     def _default_open(td, remove):
@@ -370,3 +384,28 @@ class ToyInstanceGenerator(InstanceBuilder):
         )
         td['data']['backhaul_demands'][remove] = 0
         return td
+
+    def _complete_instance(self, instance_info: Dict) -> Dict:
+        """
+        Add the fields the environment expects that the hand-written toy instance does not define.
+
+        Args:
+            instance_info (Dict): Toy instance.
+
+        Returns:
+            Dict: Instance with floating point coordinates and times and a unit speed.
+        """
+        data = instance_info['data']
+        for key in ('coords', 'tw_low', 'tw_high', 'start_time', 'end_time', 'time_windows'):
+            if key in data.keys() and not torch.is_floating_point(data[key]):
+                data[key] = data[key].float()
+        if 'speed' not in data.keys():
+            data['speed'] = torch.ones((*data.batch_size, 1), dtype=torch.float32, device=data.device)
+        # toy instances have a fixed size
+        instance_info['num_nodes'] = data['coords'].shape[1]
+        # multi-task fields
+        if 'backhaul_class' not in data.keys():
+            data['backhaul_class'] = torch.ones((*data.batch_size, 1), dtype=torch.int64, device=data.device)
+        if 'initial_load' not in data.keys():
+            data['initial_load'] = data['capacity'].float().expand(*data.batch_size, instance_info['num_agents']).clone()
+        return instance_info

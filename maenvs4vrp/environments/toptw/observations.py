@@ -57,7 +57,7 @@ class Observations(ObservationBuilder):
                                     'agent': ['frac_current_profit'],
                                     'other_agents': [],
                                     'all_agents': [],
-                                    'global': [ 'frac_fleet_load_capacity', 'frac_done_agents']}
+                                    'global': ['frac_done_agents']}
 
         if feature_list is None:
             feature_list = self.default_feature_list

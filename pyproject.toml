@@ -52,6 +52,8 @@ dependencies = [
 dev = [
     "pytest>=7.4.3",
     "packaging>=23.0",
+    "nbclient>=0.7",
+    "nbformat>=5.0",
     "ipykernel>=6.0.0",
     "ipywidgets>=8.0.0",
     "jupyter>=1.0.0",
@@ -86,4 +88,8 @@ pythonpath = ["."]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "--tb=short -m 'not slow and not notebooks'"
+markers = [
+    "slow: large instances and exhaustive combinations (run with -m slow)",
+    "notebooks: execute the tutorial notebooks (run with -m notebooks)",
+]

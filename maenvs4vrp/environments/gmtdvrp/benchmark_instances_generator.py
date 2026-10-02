@@ -211,6 +211,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         loaded_data = np.load(file_path)
         np_instance = {key: loaded_data[key] for key in loaded_data.files}
+        # each file has its own number of instances
+        self.batch_size = torch.Size([np_instance['locs'].shape[0]])
 
         data = TensorDict({}, batch_size=self.batch_size, device=self.device)
         for key in np_instance:
@@ -235,6 +237,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         zeros =  torch.zeros((*self.batch_size, 1), dtype = torch.int64, device=self.device)
         new_data['linehaul_demands'] = torch.concat([zeros, data['demand_linehaul']], dim=1) #There're always linehauls
         new_data['capacity'] = data['vehicle_capacity'] #There're always capacities
+        new_data['original_capacity'] = data['vehicle_capacity'].clone()
         self.depot_idx = 0
         new_data['depot_idx'] = self.depot_idx * torch.ones((*self.batch_size, 1), dtype = torch.int64, device=self.device)
         new_data['speed'] = data['speed'] #There's always speeed etc.
@@ -245,6 +248,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             new_data['backhaul_demands'] = torch.zeros((*self.batch_size, num_nodes), dtype=torch.float32, device=self.device)
         if 'backhaul_class' in data.keys():
             new_data['backhaul_class'] = data['backhaul_class']
+        else:
+            # variants without backhauls: class 1 (unmixed) is a neutral default
+            new_data['backhaul_class'] = torch.ones((*self.batch_size, 1), dtype=torch.int64, device=self.device)
         if 'time_windows' in data.keys():
             new_data['time_windows'] = data['time_windows']
         else:
@@ -252,6 +258,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             new_data['time_windows'][:,:,1] = float('inf')
         if 'service_time' in data.keys():
             new_data['service_time'] = data['service_time']
+        else:
+            new_data['service_time'] = torch.zeros((*self.batch_size, num_nodes), dtype=torch.float32, device=self.device)
         if 'distance_limit' in data.keys():
             new_data['distance_limits'] = data['distance_limit']
         else:
@@ -404,6 +412,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             new_data['backhaul_demands'] = data['backhaul_demands'][batch_idx, index]
         if 'backhaul_class' in data.keys():
             new_data['backhaul_class'] = data['backhaul_class']
+        else:
+            # variants without backhauls: class 1 (unmixed) is a neutral default
+            new_data['backhaul_class'] = torch.ones((*self.batch_size, 1), dtype=torch.int64, device=self.device)
         if 'time_windows' in data.keys():
             new_data['time_windows'] = data['time_windows'][batch_idx, index]
         if 'service_time' in data.keys():
@@ -430,7 +441,11 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         new_data['is_depot'] = torch.zeros((*self.batch_size, num_nodes), dtype=torch.bool, device=self.device)
         new_data['is_depot'][:, self.depot_idx] = True
 
-        new_data['initial_load'] = torch.full((*self.batch_size, self.num_agents), initial_load, dtype=torch.float32)
+        if initial_load is None:
+            # start full: each agent's initial load is the benchmark vehicle capacity
+            new_data['initial_load'] = new_data['capacity'].float().expand(*self.batch_size, self.num_agents).clone()
+        else:
+            new_data['initial_load'] = torch.full((*self.batch_size, self.num_agents), initial_load, dtype=torch.float32)
 
         new_instance['data'] = new_data
 
@@ -612,10 +627,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         else:
             self.speed = speed
 
-        if initial_load is None:
-            self.initial_load = self.capacity
-        else:
-            self.initial_load = initial_load
+        # None means "start with the benchmark vehicle capacity"
+        self.initial_load = initial_load
 
         if sample_type=='random':
             instance = self.random_sample_instance( instance_name=instance_name,

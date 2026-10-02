@@ -35,7 +35,7 @@ class Environment(AECEnv):
     def __init__(self,
                 instance_generator_object: InstanceBuilder,
                 obs_builder_object: ObservationBuilder,
-                agent_selector_object: BaseSelector,
+                agent_selector_object: BaseSelector | None,
                 reward_evaluator: RewardFn,
                 seed: Optional[int] = None,
                 device: Optional[str] = None,

@@ -14,7 +14,7 @@ Paper: Gama et al., *INFORMS Journal on Computing* (2026), doi:10.1287/ijoc.2025
 - `maenvs4vrp/utils/` - shared helpers (`utils.py`, `ops.py`, `plotting.py`, `augment_utils.py`).
 - `maenvs4vrp/learning_notebooks/` - tutorial notebooks (source of truth) and exercise `snippets/`.
 - `docs/source/` - Sphinx docs (furo theme, napoleon, nbsphinx). One folder per environment mirroring the code.
-- `tests/unit/` - pytest suite.
+- `tests/` - pytest suite; `tests/helpers.py` discovers the environments and builds/rolls them out.
 
 ## Core design rule: isolated but uniform environments
 Each environment folder is **deliberately self-contained**: code is duplicated between environments
@@ -45,11 +45,14 @@ refactor duplicated code into shared helpers. Instead, keep every folder structu
 ## Environment & commands
 - Python >= 3.11. Development conda env: `maenvs4vrp`
   (`/home/gama/miniconda3/envs/maenvs4vrp/bin/python`). It has an editable install of a *different*
-  checkout (`maenvs4vrp_dev`), so run with `PYTHONPATH=$PWD` (pytest already does via `pytest.ini`).
+  checkout (`maenvs4vrp_dev`), so run with `PYTHONPATH=$PWD` (pytest already does, see `pyproject.toml`).
 - Install: `pip install -e ".[dev,docs]"` (or `uv sync --all-extras`).
-- Tests: `pytest tests/` (slow - covers every environment). Run the files relevant to your change, e.g.
-  `pytest tests/unit/environments/reset_test.py -k cvrptw`.
-- Smaller solution checks: `pytest tests/unit/environments/check_solution_test.py --nodes 21 --agents 3`.
+- Tests: `pytest` (a few minutes; excludes the `slow` and `notebooks` markers). Run the files relevant to
+  your change, e.g. `pytest tests/unit/environments/reset_test.py -k cvrptw`; `pytest -m slow` for large
+  instances and `pytest -m notebooks` to execute the tutorials.
+- Larger solution checks: `pytest tests/unit/environments/check_solution_test.py --nodes 101 --agents 20 --batch 4`.
+- The consistency tests (`test_structure.py`, `test_docstrings.py`, `test_docs.py`, `test_observations.py`)
+  enforce the rules in this file: run them after touching any environment.
 - Docs: `cd docs && make html` (output in `docs/build/`, not committed). Read the Docs builds with
   `fail_on_warning: true`, so check locally with `python -m sphinx -W --keep-going -b html docs/source /tmp/docs`.
 - Observation docs pages are generated from the code: `python docs/tools/generate_observations_docs.py`

@@ -215,7 +215,8 @@ class ToyInstanceGenerator(InstanceBuilder):
         batch_size: Optional[torch.Size] = None,
         n_augment: Optional[int] = None,
         seed: int = None,
-        device: Optional[str] = "cpu"
+        device: Optional[str] = "cpu",
+        **kwargs
     ) -> Dict:
         """
         Sample one instance from instance space.
@@ -232,6 +233,7 @@ class ToyInstanceGenerator(InstanceBuilder):
             n_augment (int, optional): Number of augmented copies of each instance (``batch_size`` must be divisible by it). Defaults to None.
             seed (int, optional): Random number generator seed. Defaults to None.
             device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
+            **kwargs: Extra keyword arguments accepted for API compatibility; ignored.
 
         Returns:
             Dict: Instance data.

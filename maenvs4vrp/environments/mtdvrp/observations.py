@@ -474,7 +474,7 @@ class Observations(ObservationBuilder):
         loc = self.env.td_state['coords'].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
         ptime = self.env.td_state['cur_agent']['cur_time'].clone()
         curr_depot = self.env.td_state['depot_loc'].gather(1, self.env.td_state['cur_agent']['depot_idx'].unsqueeze(-1).expand(-1, -1, 2))
-        time2depot = torch.pairwise_distance(loc, curr_depot.squeeze(1), eps=0, keepdim = False)
+        time2depot = torch.pairwise_distance(loc, curr_depot, eps=0, keepdim = False)
         arrivej = ptime + time2depot
 
         feat = (arrivej - self.env.td_state['start_time'].unsqueeze(1))

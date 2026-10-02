@@ -35,8 +35,7 @@ class DenseReward(RewardFn):
             action (torch.Tensor): [B, A] tensor with all agents' moves.
 
         Returns:
-            torch.Tensor: Reward.
-                penalty(torch.Tensor): Penalty.
+            tuple[torch.Tensor, torch.Tensor]: Reward and penalty, with shape [B, 1] each.
         """
 
         reward = -self.env.td_state['cur_agent']['cur_travel_time'].clone()
@@ -84,8 +83,7 @@ class SparseReward(RewardFn):
             action (torch.Tensor): Tensor with agent moves.
 
         Returns:
-            torch.Tensor: Reward.
-                penalty(torch.Tensor): Penalty.
+            tuple[torch.Tensor, torch.Tensor]: Reward and penalty, with shape [B, 1] each.
         """
 
         reward = torch.zeros_like(action, dtype = torch.float, device=self.env.device)

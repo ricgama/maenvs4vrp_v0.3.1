@@ -181,6 +181,7 @@ class ToyInstanceGenerator(InstanceBuilder):
         sample_type: str = "random",
         batch_size: Optional[int] = None,
         seed: int = None,
+        **kwargs
     ) -> Dict:
         """
         Sample one instance from instance space.
@@ -192,6 +193,7 @@ class ToyInstanceGenerator(InstanceBuilder):
             sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
             batch_size (int, optional): Batch size. Defaults to None.
             seed (int, optional): Random number generator seed. Defaults to None.
+            **kwargs: Extra keyword arguments accepted for API compatibility; ignored.
 
         Returns:
             Dict: Instance data.
@@ -228,20 +230,49 @@ class ToyInstanceGenerator(InstanceBuilder):
 
 
         if sample_type == "random":
-            return self.random_generate_instance(
+            return self._complete_instance(self.random_generate_instance(
                 num_agents=num_agents,
                 num_nodes=num_nodes,
                 batch_size=batch_size,
                 seed=seed,
-            )
+            ))
 
 
         if sample_type == "saved":
             if instance_name is None:
                 instance_name = self.sample_name_from_set(seed=seed)
-            return self.get_instance(instance_name, num_agents=num_agents)
+            return self._complete_instance(self.get_instance(instance_name, num_agents=num_agents))
 
         raise ValueError(f"Unknown sample_type: {sample_type}")
+
+    def _complete_instance(self, instance_info: Dict) -> Dict:
+        """
+        Add the fields the environment expects that the hand-written toy instance does not define.
+
+        Args:
+            instance_info (Dict): Toy instance.
+
+        Returns:
+            Dict: Instance with floating point coordinates and times and a unit speed.
+        """
+        data = instance_info['data']
+        for key in ('coords', 'tw_low', 'tw_high', 'start_time', 'end_time', 'time_windows'):
+            if key in data.keys() and not torch.is_floating_point(data[key]):
+                data[key] = data[key].float()
+        if 'speed' not in data.keys():
+            data['speed'] = torch.ones((*data.batch_size, 1), dtype=torch.float32, device=data.device)
+        # toy instances have a fixed size
+        instance_info['num_nodes'] = data['coords'].shape[1]
+        # hcvrp state keys
+        if 'demand' not in data.keys():
+            data['demand'] = data['demands']
+        if 'depot' not in data.keys():
+            data['depot'] = data['depot_idx']
+        num_nodes = data['coords'].shape[1]
+        if data['is_depot'].shape[-1] != num_nodes:
+            data['is_depot'] = torch.zeros((*data.batch_size, num_nodes), dtype=torch.bool, device=data.device)
+            data['is_depot'].scatter_(1, data['depot_idx'], True)
+        return instance_info
 
 
 if __name__ == "__main__":

@@ -35,8 +35,7 @@ class DenseReward(RewardFn):
             action (torch.Tensor): [B, A] tensor with all agents' moves.
 
         Returns:
-            torch.Tensor: Reward.
-                penalty(torch.Tensor): Penalty.
+            tuple[torch.Tensor, torch.Tensor]: Reward and penalty, with shape [B, 1] each.
         """
 
         reward = -self.env.td_state['cur_agent']['cur_tdist'].clone()
@@ -48,7 +47,7 @@ class DenseReward(RewardFn):
         depot2nodes = torch.pairwise_distance(self.env.td_state['depot_loc'], self.env.td_state['coords'], eps=0, keepdim = False)
         if self.env.n_digits is not None:
             depot2nodes = torch.floor(self.env.n_digits * depot2nodes) / self.env.n_digits
-        penalty[is_last_step] = self.pending_penalty * ((depot2nodes * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
+        penalty[is_last_step] += self.pending_penalty * ((depot2nodes * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
 
         return reward, penalty
 
@@ -81,8 +80,7 @@ class SparseReward(RewardFn):
             action (torch.Tensor): Tensor with agent moves.
 
         Returns:
-            torch.Tensor: Reward.
-                penalty(torch.Tensor): Penalty.
+            tuple[torch.Tensor, torch.Tensor]: Reward and penalty, with shape [B, 1] each.
         """
 
         reward = torch.zeros_like(action, dtype = torch.float, device=self.env.device)
@@ -96,7 +94,8 @@ class SparseReward(RewardFn):
             depot2nodes = torch.floor(self.env.n_digits * depot2nodes) / self.env.n_digits
 
         final_reward = -self.env.td_state['agents']['cum_tdist'].sum(1, keepdim = True)
-        final_penalty = -self.env.td_state['agents']['cum_penalty'].sum(1, keepdim = True)
+        # penalties are already negative
+        final_penalty = self.env.td_state['agents']['cum_penalty'].sum(1, keepdim = True)
 
         penalty[is_last_step] = self.pending_penalty * ((depot2nodes * self.env.td_state['nodes']['active_nodes_mask']).sum(-1, keepdim = True).float()[is_last_step])
         penalty[is_last_step] += final_penalty[is_last_step]

@@ -16,9 +16,9 @@ class Observations(ObservationBuilder):
     POSSIBLE_NODES_STATIC_FEATURES = ['x_coordinate', 'y_coordinate','demand',
                                     'x_coordinate_min_max', 'y_coordinate_min_max', 'is_depot']
 
-    POSSIBLE_NODES_DYNAMIC_FEATURES = ['distance_matrix']
+    POSSIBLE_NODES_DYNAMIC_FEATURES = []
 
-    POSSIBLE_EDGES_STATIC_FEATURES = []
+    POSSIBLE_EDGES_STATIC_FEATURES = ['distance_matrix']
 
     POSSIBLE_AGENT_FEATURES = []
 
@@ -55,7 +55,7 @@ class Observations(ObservationBuilder):
                                     'is_depot': {'feat': 'is_depot', 'norm': None}},
                                     'edges_static': ['distance_matrix'],
                                     'nodes_dynamic': [],
-                                    'agent': ['remaining_capacity'],
+                                    'agent': [],
                                     'other_agents': [],
                                     'all_agents': ['remaining_capacity', 'cur_time'],
                                     'global': [ 'frac_fleet_load_capacity', 'frac_done_agents']}
@@ -85,6 +85,16 @@ class Observations(ObservationBuilder):
 
 
     ## static node features
+    def get_edges_feat_distance_matrix(self):
+        """
+        Euclidean distance between every pair of nodes.
+
+        Returns:
+            torch.Tensor: Distance matrix, with shape [B, N, N].
+        """
+        coords = self.env.td_state["coords"]
+        return torch.cdist(coords, coords, p=2)
+
     def get_feat_x_coordinate(self):
         """
         Instance nodes X coordinates.

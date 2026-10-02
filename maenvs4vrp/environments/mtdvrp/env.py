@@ -54,7 +54,7 @@ class Environment(AECEnv):
         self,
         instance_generator_object: InstanceBuilder,
         obs_builder_object: ObservationBuilder,
-        agent_selector_object: BaseSelector,
+        agent_selector_object: BaseSelector | None,
         reward_evaluator: RewardFn,
         seed: Optional[int] = None,
         device: Optional[str] = None,
@@ -1223,7 +1223,7 @@ class Environment(AECEnv):
             AssertionError: If the solution violates a problem constraint.
         """
         eps = 1e-6
-        for i in range(self.td_state['num_depots'][0].item()):
+        for i in range(self.num_depots):
             distance2depot = get_distance(self.td_state['coords'], self.td_state['coords'][..., i:i+1, :])
             time2depot = distance2depot / self.td_state['speed']
 
@@ -1343,24 +1343,24 @@ class Environment(AECEnv):
 
             #Backhaul class 1 (unmixed), agents cannot supply linehaul if carrying backhaul
             assert(
-                (self.td_state['backhaul_class'] == 2) |
+                (self.td_state['backhaul_class'].squeeze(-1) == 2) |
                 (used_cap_b == 0) |
-                ((self.td_state['backhaul_class'] == 1) & ~(demand_l[:, ii] > 0))
+                ((self.td_state['backhaul_class'].squeeze(-1) == 1) & ~(demand_l[:, ii] > 0))
             ).all(), "Cannot pickup linehaul while carrying backhaul in unmixed problems."
 
             #Backhaul class 2 (mixed), agents cannot supply linehaul, if backhaul load + linehaul demand in node exceeds agent's capacity
 
             assert(
-                (self.td_state['backhaul_class'] == 1) |
+                (self.td_state['backhaul_class'].squeeze(-1) == 1) |
                 (used_cap_b == 0) |
-                ((self.td_state['backhaul_class'] == 2) & (used_cap_b + demand_l[:, ii] <= self.td_state['capacity']))
+                ((self.td_state['backhaul_class'].squeeze(-1) == 2) & (used_cap_b + demand_l[:, ii] <= self.td_state['capacity'].squeeze(-1) + 1e-6))
             ).all(), "Cannot supply linehaul, not enough load."
 
             #Loads must not exceed capacity
             assert(
-                used_cap_l <= self.td_state['capacity']
-            ).all(), "Used more linehaul than capacity: {}/{}".format(used_cap_l, self.td_state['capacity'])
+                used_cap_l <= self.td_state['capacity'].squeeze(-1) + 1e-6
+            ).all(), "Used more linehaul than capacity: {}/{}".format(used_cap_l, self.td_state['capacity'].squeeze(-1))
 
             assert(
-                used_cap_b <= self.td_state['capacity']
-            ).all(), "Used more backhaul than capacity: {}/{}".format(used_cap_b, self.td_state['capacity'])
+                used_cap_b <= self.td_state['capacity'].squeeze(-1) + 1e-6
+            ).all(), "Used more backhaul than capacity: {}/{}".format(used_cap_b, self.td_state['capacity'].squeeze(-1))

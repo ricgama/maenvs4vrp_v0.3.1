@@ -29,10 +29,10 @@ Nodes static features
 
 .. automethod:: maenvs4vrp.parallel_environments.cvrp.observations.Observations.get_feat_is_depot
 
-Nodes dynamic features
-^^^^^^^^^^^^^^^^^^^^^^
+Edges static features
+^^^^^^^^^^^^^^^^^^^^^
 
-.. automethod:: maenvs4vrp.parallel_environments.cvrp.observations.Observations.get_feat_distance_matrix
+.. automethod:: maenvs4vrp.parallel_environments.cvrp.observations.Observations.get_edges_feat_distance_matrix
 
 Other agents features
 ^^^^^^^^^^^^^^^^^^^^^

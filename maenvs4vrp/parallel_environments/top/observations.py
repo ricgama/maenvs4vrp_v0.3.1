@@ -56,10 +56,10 @@ class Observations(ObservationBuilder):
                                     'profits': {'feat': 'profits', 'norm': None},
                                     'is_depot': {'feat': 'is_depot', 'norm': None}},
                                     'nodes_dynamic': [],
-                                    'agent': ['frac_current_profit'],
+                                    'agent': [],
                                     'other_agents': [],
                                     'all_agents': [],
-                                    'global': [ 'frac_fleet_load_capacity', 'frac_done_agents']}
+                                    'global': ['frac_done_agents']}
 
         if feature_list is None:
             feature_list = self.default_feature_list

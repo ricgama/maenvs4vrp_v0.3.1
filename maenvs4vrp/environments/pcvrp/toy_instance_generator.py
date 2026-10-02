@@ -156,7 +156,7 @@ class ToyInstanceGenerator(InstanceBuilder):
                         sample_type:str='random',
                         batch_size: Optional[torch.Size] = None,
                         n_augment: Optional[int] = None,
-                        seed:int=None)-> Dict:
+                        seed:int=None, **kwargs)-> Dict:
         """
         Sample one instance from instance space.
 
@@ -171,6 +171,7 @@ class ToyInstanceGenerator(InstanceBuilder):
             batch_size (torch.Size, optional): Batch size. Defaults to None.
             n_augment (int, optional): Number of augmented copies of each instance (``batch_size`` must be divisible by it). Defaults to None.
             seed (int, optional): Random number generator seed. Defaults to None.
+            **kwargs: Extra keyword arguments accepted for API compatibility; ignored.
 
         Returns:
             Dict: Instance data.
@@ -213,6 +214,26 @@ class ToyInstanceGenerator(InstanceBuilder):
                                                      batch_size = batch_size,
                                                      seed=seed)
 
+        return self._complete_instance(instance_info)
+
+    def _complete_instance(self, instance_info: Dict) -> Dict:
+        """
+        Add the fields the environment expects that the hand-written toy instance does not define.
+
+        Args:
+            instance_info (Dict): Toy instance.
+
+        Returns:
+            Dict: Instance with floating point coordinates and times and a unit speed.
+        """
+        data = instance_info['data']
+        for key in ('coords', 'tw_low', 'tw_high', 'start_time', 'end_time', 'time_windows'):
+            if key in data.keys() and not torch.is_floating_point(data[key]):
+                data[key] = data[key].float()
+        if 'speed' not in data.keys():
+            data['speed'] = torch.ones((*data.batch_size, 1), dtype=torch.float32, device=data.device)
+        # toy instances have a fixed size
+        instance_info['num_nodes'] = data['coords'].shape[1]
         return instance_info
 
 if __name__ == '__main__':

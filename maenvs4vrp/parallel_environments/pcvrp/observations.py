@@ -49,7 +49,7 @@ class Observations(ObservationBuilder):
                                     'demand': {'feat': 'demand', 'norm': None},
                                     'is_depot': {'feat': 'is_depot', 'norm': None}},
                                     'nodes_dynamic': [],
-                                    'agent': ['frac_current_load'],
+                                    'agent': [],
                                     'other_agents': [],
                                     'all_agents': [],
                                     'global': [ 'frac_fleet_load_capacity', 'frac_done_agents']}

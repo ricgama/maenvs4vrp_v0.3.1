@@ -475,7 +475,8 @@ class Observations(ObservationBuilder):
             torch.Tensor: Fraction of fleet load capacity.
         """
         feat = self.env.td_state['agents']['cur_load'].sum(dim=-1).unsqueeze(1)
-        capacity = self.env.td_state['agents']['capacity']
-        return feat / (capacity * self.env.num_agents)
+        # heterogeneous fleet: divide by the total fleet capacity
+        capacity = self.env.td_state['agents']['capacity'].sum(dim=-1, keepdim=True)
+        return feat / capacity
 
     # --------------------------------------------------------------------------------------

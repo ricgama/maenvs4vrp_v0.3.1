@@ -454,7 +454,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         if max_speed is not None:
             self.max_speed = max_speed
 
-        if batch_size is not None:
+        if batch_size is None:
             batch_size = [1]
         else:
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
