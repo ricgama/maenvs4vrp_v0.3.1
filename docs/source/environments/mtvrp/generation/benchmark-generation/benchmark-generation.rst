@@ -6,7 +6,7 @@ Benchmark Instance Generation
 
 TODO: CHANGE HERE!
 
-Solomon and Homberger instances are included to be used with CVRPTW environment.
+Solomon and Homberger instances are included to be used with MTVRP environment.
 
 Benchmark instance generation settings are defined in file ``benchmark_instances_generator.py``.
 
