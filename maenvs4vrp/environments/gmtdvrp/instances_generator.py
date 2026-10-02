@@ -926,6 +926,9 @@ class InstanceGenerator(InstanceBuilder):
         elif sample_type=='saved':
             instance_info = self.get_instance(instance_name, num_agents=num_agents)
 
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random', 'augment' or 'saved'.")
+
         return instance_info
 
 

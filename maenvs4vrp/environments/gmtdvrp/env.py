@@ -1042,24 +1042,6 @@ class Environment(AECEnv):
             time2j = torch.floor(self.n_digits * time2j) / self.n_digits
             distance2j = torch.floor(self.n_digits * distance2j) / self.n_digits
 
-        # debug near-violation
-        eps = 1e-6
-        cur_route_length = self.td_state['cur_agent']['cur_route_length']  # [B, 1]
-        distance_limits = self.td_state['distance_limits'].unsqueeze(1)
-        potential_length = cur_route_length + distance2j
-
-        mask_offend = (potential_length > (distance_limits + eps)).squeeze(-1)
-        if mask_offend.any():
-            b_idx, a_idx = torch.nonzero(mask_offend, as_tuple=True)
-            for bi, ai in zip(b_idx.tolist(), a_idx.tolist()):
-                print("=== ROUTE-LENGTH DEBUG mtdvrp ===")
-                print(f"step ~ action: batch={bi}, agent={ai}")
-                print("cur_route_length:", cur_route_length[bi, ai].item() if cur_route_length.dim()>1 else cur_route_length[bi].item())
-                print("distance2j:", distance2j[bi, ai].item() if distance2j.dim()>2 else distance2j[bi].item())
-                print("distance_limits:", distance_limits[bi, 0].item())
-                print("agent_depot_idx:", self.td_state['agents']['depot_idx'][bi, ai].item())
-                print("open_routes:", self.td_state['open_routes'][bi].item() if self.td_state['open_routes'].dim()==1 else self.td_state['open_routes'][bi,0].item())
-                print("==================================")
 
         tw = self.td_state['tw_low'].gather(1, action)
         service_time = self.td_state['service_time'].gather(1, action)

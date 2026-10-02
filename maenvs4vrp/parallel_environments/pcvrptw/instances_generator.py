@@ -120,7 +120,6 @@ class InstanceGenerator(InstanceBuilder):
         self.num_agents = 20
         self.num_nodes = 100
 
-        assert instance_name in ["validation", "test"], f"instance unknown name"
         self.list_of_instances = list_of_instances
         if list_of_instances:
             self.instance_name = instance_name
@@ -443,6 +442,9 @@ class InstanceGenerator(InstanceBuilder):
                                                      device=device)
         elif sample_type=='saved':
             instance_info = self.get_instance(instance_name, num_agents=num_agents)
+
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random', 'augment' or 'saved'.")
 
         return instance_info
 

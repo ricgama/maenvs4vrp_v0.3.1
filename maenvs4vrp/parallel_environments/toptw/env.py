@@ -669,7 +669,7 @@ class Environment(PEnv):
         """
 
         distance2depot = get_distance(self.td_state['coords'], self.td_state['coords'][..., 0:1, :])
-        time2depot = distance2depot / self.td_state['speed'].squeeze(-1)
+        time2depot = distance2depot / self.td_state['speed']
         if self.n_digits is not None:
             distance2depot = torch.floor(self.n_digits * distance2depot) / self.n_digits
             time2depot = torch.floor(self.n_digits * time2depot) / self.n_digits

@@ -550,7 +550,7 @@ class Environment(AECEnv):
         locs_exp   = locs.unsqueeze(2).expand(-1, -1, self.num_nodes, -1)
         coords_exp = self.td_state['coords'].unsqueeze(1).expand(-1, self.num_agents, -1, -1)
         distance2j = torch.norm(locs_exp - coords_exp, dim=-1)   # [B, num_agents, num_nodes]
-        time2j     = distance2j / self.td_state['speed']          # [B, num_agents, num_nodes]
+        time2j     = distance2j / self.td_state['speed'].unsqueeze(1)          # [B, num_agents, num_nodes]
 
         if self.n_digits is not None:
             distance2j = torch.floor(self.n_digits * distance2j) / self.n_digits
@@ -573,7 +573,7 @@ class Environment(AECEnv):
         # cur_load: [B, num_agents] -> [B, num_agents, 1]
         # demands:  [B, num_nodes]  -> [B, 1, num_nodes]
         c3 = (self.td_state['agents']['cur_load'].unsqueeze(-1) +
-              self.td_state['demands'].unsqueeze(1)) <= self.td_state['capacity']  # [B, num_agents, num_nodes]
+              self.td_state['demands'].unsqueeze(1)) <= self.td_state['capacity'].unsqueeze(1)  # [B, num_agents, num_nodes]
 
         _mask = _mask * c1 * c2 * c3
 

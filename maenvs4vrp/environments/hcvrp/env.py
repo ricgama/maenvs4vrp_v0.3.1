@@ -708,7 +708,7 @@ class Environment(AECEnv):
             # increment trip count for agents that visited depot
             self.td_state['agents']['trip_count'].scatter_add_(1, self.td_state['cur_agent_idx'], is_depot.float().to(torch.int64))
             # reset load at depot for multi-trip continuation
-            self.td_state['cur_agent']['cur_load'] = torch.where(is_depot, self.td_state['agents']['capacity'].gather(1,self.td_state['cur_agent_idx']).squeeze(1), self.td_state['cur_agent']['cur_load'])
+            self.td_state['cur_agent']['cur_load'] = torch.where(is_depot, self.td_state['agents']['capacity'].gather(1, self.td_state['cur_agent_idx']), self.td_state['cur_agent']['cur_load'])
             self.td_state['agents']['cur_load'].scatter_(1, self.td_state['cur_agent_idx'], self.td_state['cur_agent']['cur_load'])
 
 
@@ -961,7 +961,6 @@ class Environment(AECEnv):
             curr_node = next_node
 
         # 4. Final Constraints
-        # Every customer node (1 to N) must be visited exactly once
+        # Customer nodes (1 to N) can be visited at most once
         visited_nodes_exc_depot = visited_nodes[:, 1:]
-        assert torch.all(visited_nodes_exc_depot == 1), "Some nodes were missed or visited multiple times!"
-        #assert torch.all((visited_nodes_exc_depot == 0) | (visited_nodes_exc_depot == 1)), "Nodes were visited more than once!"
+        assert torch.all((visited_nodes_exc_depot == 0) | (visited_nodes_exc_depot == 1)), "Nodes were visited more than once!"

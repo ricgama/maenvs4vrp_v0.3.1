@@ -374,7 +374,7 @@ class Environment(PEnv):
         locs_exp   = locs.unsqueeze(2).expand(-1, -1, self.num_nodes, -1)
         coords_exp = self.td_state['coords'].unsqueeze(1).expand(-1, self.num_agents, -1, -1)
         distance2j = torch.norm(locs_exp - coords_exp, dim=-1)   # [B, A, N]
-        time2j     = distance2j / self.td_state['speed']          # [B, A, N]
+        time2j     = distance2j / self.td_state['speed'].unsqueeze(1)          # [B, A, N]
 
         if self.n_digits is not None:
             distance2j = torch.floor(self.n_digits * distance2j) / self.n_digits

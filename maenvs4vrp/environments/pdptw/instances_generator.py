@@ -115,17 +115,13 @@ class InstanceGenerator(InstanceBuilder):
             batch_size = [batch_size] if isinstance(batch_size, int) else batch_size
         self.batch_size = torch.Size(batch_size)
 
-        assert instance_name in ["validation", "test"], f"instance unknown type"
         self.list_of_instances = list_of_instances
         self.instance_name = instance_name
 
-        if self.instance_name is not None:
-            dataset_available = self._ensure_dataset_exists()
-            if not dataset_available:
-                self.instance_name = None
-                self.list_of_instances = None
-            elif list_of_instances is not None:
-                self.load_list_of_instances()
+        # Saved instances are only read when a list of instances is given, so random
+        # generation never needs the dataset (nor network access).
+        if list_of_instances is not None:
+            self.load_list_of_instances()
 
     def _ensure_dataset_exists(self) -> bool:
         """
@@ -273,6 +269,10 @@ class InstanceGenerator(InstanceBuilder):
         Returns:
             None.
         """
+        if self.instance_name is not None and not self._ensure_dataset_exists():
+            raise RuntimeError(f"Dataset '{self.instance_name}' is not available locally nor on Hugging Face '{HF_REPO_ID}'.")
+        if list_of_instances is None and self.list_of_instances is None:
+            self.list_of_instances = self.get_list_of_instances().get(self.instance_name, [])
         if list_of_instances:
             self.list_of_instances = list_of_instances
         self.instances_data = dict()
@@ -520,6 +520,8 @@ class InstanceGenerator(InstanceBuilder):
         if num_agents is not None:
             self.num_agents = num_agents
         if num_nodes is not None:
+            if (num_nodes-1) % 2 != 0:
+                raise ValueError(f"num_nodes must be odd (depot + pickup/delivery pairs), got {num_nodes}.")
             self.num_nodes = num_nodes
         if capacity is not None:
             self.capacity = capacity
@@ -541,6 +543,9 @@ class InstanceGenerator(InstanceBuilder):
                                                      device=device)
         elif sample_type=='saved':
             instance_info = self.get_instance(instance_name, num_agents=num_agents)
+
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random', 'augment' or 'saved'.")
 
         return instance_info
 

@@ -1278,26 +1278,6 @@ class Environment(AECEnv):
             #curr_length = curr_length + dist * ~(self.td_state['open_routes'].squeeze(-1) & (torch.isin(next_node, self.td_state['depot_idx']))) #Update curr_length
             curr_length = curr_length + dist * ~(self.td_state['open_routes'].squeeze(-1) & (next_node == agent_depot)) #Update curr_length
 
-            # DEBUG: near-limit print
-            eps_dbg = 1e-4
-            close_mask = (curr_length > (self.td_state['distance_limits'].squeeze(-1) - eps_dbg)) & (curr_length <= (self.td_state['distance_limits'].squeeze(-1) + 1.0))
-            if close_mask.any():
-                ids = torch.nonzero(close_mask, as_tuple=True)[0]
-                for b in ids.tolist():
-                    print("=== CHECK-SOLUTION NEAR-LIMIT DEBUG ===")
-                    print(f"step={ii} batch={b} next_node={int(next_node[b].item())} agent={int(agent_idx_seq[b].item())}")
-                    print("  dist (rounded):", float(dist[b].item()))
-                    print("  curr_length(after add):", float(curr_length[b].item()))
-                    print("  distance_limit:", float(self.td_state['distance_limits'].squeeze(-1)[b].item()))
-                    try:
-                        print("  agents.route_length:", self.td_state['agents']['route_length'][b].tolist())
-                    except Exception:
-                        pass
-                    print("  open_routes:", bool(self.td_state['open_routes'][b].item()) if self.td_state['open_routes'].dim()>0 else bool(self.td_state['open_routes'].item()))
-                    print("  agent_depot:", int(agent_depot[b].item()))
-                    print("  n_digits:", self.n_digits)
-                    print("======================================")
-
 
             # Add eps margin — same pattern as time window check below
             valid_length = (curr_length <= self.td_state['distance_limits'].squeeze(-1)) | \

@@ -111,17 +111,13 @@ class InstanceGenerator(InstanceBuilder):
         self.profits_type = profit_type
         self.profits = profits
 
-        assert instance_name in ["validation", "test"], f"instance unknown type"
         self.instance_name = instance_name
         self.list_of_instances = list_of_instances
 
-        if self.instance_name is not None:
-            dataset_available = self._ensure_dataset_exists()
-            if not dataset_available:
-                self.instance_name = None
-                self.list_of_instances = None
-            elif list_of_instances is not None:
-                self.load_list_of_instances()
+        # Saved instances are only read when a list of instances is given, so random
+        # generation never needs the dataset (nor network access).
+        if list_of_instances is not None:
+            self.load_list_of_instances()
 
     def _ensure_dataset_exists(self) -> bool:
         """
@@ -270,6 +266,10 @@ class InstanceGenerator(InstanceBuilder):
         Returns:
             None.
         """
+        if self.instance_name is not None and not self._ensure_dataset_exists():
+            raise RuntimeError(f"Dataset '{self.instance_name}' is not available locally nor on Hugging Face '{HF_REPO_ID}'.")
+        if list_of_instances is None and self.list_of_instances is None:
+            self.list_of_instances = self.get_list_of_instances().get(self.instance_name, [])
         if list_of_instances:
             self.list_of_instances = list_of_instances
         self.instances_data = dict()
@@ -489,6 +489,9 @@ class InstanceGenerator(InstanceBuilder):
                                                      device=device)
         elif sample_type=='saved':
             instance_info = self.get_instance(instance_name, num_agents=num_agents)
+
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random', 'augment' or 'saved'.")
 
         return instance_info
 
