@@ -421,7 +421,7 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['cur_agent']['action_mask'].sum(dim=1).unsqueeze(1)
         return feat / self.env.num_nodes
 
-    def get_feat_agents_dist2depot_div_end_time(self):
+    def get_feat_other_agents_dist2depot_div_end_time(self):
         """
         Fraction of current agent distance to depot compared to its end time.
 
@@ -467,7 +467,7 @@ class Observations(ObservationBuilder):
         feat = loc[:, :, 0]
         return feat
 
-    def get_feat_agents_y_coordinate_min_max(self):
+    def get_feat_other_agents_y_coordinate_min_max(self):
         """
         Agents min-max normalized Y location.
 
@@ -598,5 +598,27 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['agents']['cur_load'].sum(dim=-1).unsqueeze(1)
         capacity = self.env.td_state['agents']['capacity']
         return feat / (capacity * self.env.num_agents)
+
+    ## Features added for consistency with the POSSIBLE_* lists
+
+    def get_feat_other_agents_frac_current_time(self):
+        """
+        Agents fraction of elapsed time.
+
+        Returns:
+            torch.Tensor: Agents fraction of elapsed time.
+        """
+        feats = self.env.td_state['agents']['cur_time'] / self.env.td_state['end_time'].unsqueeze(dim=-1)
+        return feats
+
+    def get_feat_other_agents_time_delta2agent_div_max_dur(self):
+        """
+        Difference between agents time and current agent time, divided by max. tour duration.
+
+        Returns:
+            torch.Tensor: Difference between agents time and current agent time, divided by max. tour duration.
+        """
+        feats = (self.env.td_state['agents']['cur_time'] - self.env.td_state['cur_agent']['cur_time'] )/ self.env.td_state['max_tour_duration'].unsqueeze(dim=-1)
+        return feats
 
     # --------------------------------------------------------------------------------------

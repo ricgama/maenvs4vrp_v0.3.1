@@ -22,9 +22,10 @@ class Observations(ObservationBuilder):
                                 'time2end_after_step_div_end_time', 'fract_time_after_step_div_end_time',
                                 'reachable_frac_agents']
 
-    POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
-                                'arrivedepot_div_end_time', 'cur_linehaul_load', 'cur_backhaul_load', 'available_load',
-                                'available_load_vrpmpd' ,'remaining_dist', 'frac_feasible_nodes', 'current_time']
+    POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate', 'x_coordinate_min_max',
+                               'y_coordinate_min_max', 'frac_current_time', 'arrivedepot_div_end_time',
+                               'cur_linehaul_load', 'cur_backhaul_load', 'remaining_dist',
+                               'frac_feasible_nodes', 'current_time']
 
     POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
                                     'dist2depot_div_end_time',
@@ -500,7 +501,7 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['cur_agent']['cur_time']
         return feat
 
-    def get_feat_agents_dist2depot_div_end_time(self):
+    def get_feat_other_agents_dist2depot_div_end_time(self):
         """
         Fraction of current agent distance to depot compared to its end time.
 
@@ -665,7 +666,9 @@ class Observations(ObservationBuilder):
             torch.Tensor: Fraction of served demands.
         """
         feat = self.env.td_state['nodes']['backhaul_demands'].sum(dim=-1).unsqueeze(1)
-        return feat / self.env.td_state['backhaul_demands'].sum(dim=-1).unsqueeze(1)
+        total = self.env.td_state['backhaul_demands'].sum(dim=-1).unsqueeze(1)
+        # instances without backhauls have nothing left to serve
+        return torch.where(total > 0, feat / total.clamp(min=1e-9), torch.zeros_like(feat))
 
     def get_feat_global_open_routes(self):
 

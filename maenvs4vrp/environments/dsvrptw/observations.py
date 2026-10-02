@@ -391,7 +391,7 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['cur_agent']['action_mask'].sum(dim=1).unsqueeze(1)
         return feat / self.env.num_nodes
 
-    def get_feat_agents_dist2depot_div_end_time(self):
+    def get_feat_other_agents_dist2depot_div_end_time(self):
         """
         Fraction of current agent distance to depot compared to its end time.
 

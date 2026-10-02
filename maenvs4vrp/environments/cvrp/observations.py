@@ -18,8 +18,7 @@ class Observations(ObservationBuilder):
 
     POSSIBLE_EDGES_STATIC_FEATURES = ['distance_matrix']
 
-    POSSIBLE_NODES_DYNAMIC_FEATURES = ['time2end_after_step_div_end_time', 'fract_time_after_step_div_end_time',
-                                       'reachable_frac_agents']
+    POSSIBLE_NODES_DYNAMIC_FEATURES = ['reachable_frac_agents']
 
     POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate', 'remaining_capacity', 'frac_feasible_nodes']
 
@@ -86,6 +85,16 @@ class Observations(ObservationBuilder):
 
 
     ## static node features
+    def get_edges_feat_distance_matrix(self):
+        """
+        Euclidean distance between every pair of nodes.
+
+        Returns:
+            torch.Tensor: Distance matrix, with shape [B, N, N].
+        """
+        coords = self.env.td_state["coords"]
+        return torch.cdist(coords, coords, p=2)
+
     def get_feat_x_coordinate(self):
         """
         Instance nodes X coordinates.
@@ -284,7 +293,7 @@ class Observations(ObservationBuilder):
         feat = loc[:, :, 0]
         return feat
 
-    def get_feat_agents_y_coordinate_min_max(self):
+    def get_feat_other_agents_y_coordinate_min_max(self):
         """
         Agents min-max normalized Y location.
 
@@ -402,5 +411,34 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['agents']['cur_load'].sum(dim=-1).unsqueeze(1)
         capacity = self.env.td_state['agents']['capacity']
         return feat / (capacity * self.env.num_agents)
+
+    ## Features added for consistency with the POSSIBLE_* lists
+
+    def get_feat_all_agents_x_coordinate_min_max(self):
+        """
+        Agents min-max normalized X location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized X location.
+        """
+        return self.get_feat_other_agents_x_coordinate_min_max()
+
+    def get_feat_all_agents_y_coordinate_min_max(self):
+        """
+        Agents min-max normalized Y location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized Y location.
+        """
+        return self.get_feat_other_agents_y_coordinate_min_max()
+
+    def get_feat_all_agents_was_last(self):
+        """
+        Last agent performing an action.
+
+        Returns:
+            torch.Tensor: Last agent performing an action.
+        """
+        return self.get_feat_other_agents_was_last()
 
     # --------------------------------------------------------------------------------------

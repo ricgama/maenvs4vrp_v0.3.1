@@ -18,16 +18,15 @@ class Observations(ObservationBuilder):
 
     POSSIBLE_NODES_DYNAMIC_FEATURES = ['distance_matrix']
 
-    POSSIBLE_EDGES_STATIC_FEATURES = ['time2end_after_step_div_end_time', 'fract_time_after_step_div_end_time',
-                                       'reachable_frac_agents']
+    POSSIBLE_EDGES_STATIC_FEATURES = []
 
-    POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate', 'remaining_capacity', 'frac_feasible_nodes']
+    POSSIBLE_AGENT_FEATURES = []
 
-    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max',
-                                    'remaining_capacity', 'was_last']
+    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate', 'x_coordinate_min_max',
+                                      'y_coordinate_min_max', 'remaining_capacity']
 
-    POSSIBLE_ALL_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max',
-                                    'remaining_capacity', 'cur_time', 'was_last']
+    POSSIBLE_ALL_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate', 'x_coordinate_min_max',
+                                    'y_coordinate_min_max', 'remaining_capacity', 'cur_time']
 
     POSSIBLE_GLOBAL_FEATURES = ['frac_fleet_load_capacity', 'frac_done_agents']
 
@@ -284,7 +283,7 @@ class Observations(ObservationBuilder):
         feat = loc[:, :, 0]
         return feat
 
-    def get_feat_agents_y_coordinate_min_max(self):
+    def get_feat_other_agents_y_coordinate_min_max(self):
         """
         Agents min-max normalized Y location.
 
@@ -402,5 +401,25 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['agents']['cur_load'].sum(dim=-1).unsqueeze(1)
         capacity = self.env.td_state['agents']['capacity']
         return feat / (capacity * self.env.num_agents)
+
+    ## Features added for consistency with the POSSIBLE_* lists
+
+    def get_feat_all_agents_x_coordinate_min_max(self):
+        """
+        Agents min-max normalized X location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized X location.
+        """
+        return self.get_feat_other_agents_x_coordinate_min_max()
+
+    def get_feat_all_agents_y_coordinate_min_max(self):
+        """
+        Agents min-max normalized Y location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized Y location.
+        """
+        return self.get_feat_other_agents_y_coordinate_min_max()
 
     # --------------------------------------------------------------------------------------

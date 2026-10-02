@@ -15,16 +15,13 @@ class Observations(ObservationBuilder):
     POSSIBLE_NODES_STATIC_FEATURES = ['x_coordinate', 'y_coordinate', 'demand', 'service_time',
                                     'x_coordinate_min_max', 'y_coordinate_min_max', 'is_depot', 'profits']
 
-    POSSIBLE_NODES_DYNAMIC_FEATURES = ['arrive2node_div_end_time', 'time2end_after_step_div_end_time',
-                                'fract_time_after_step_div_end_time', 'reachable_frac_agents']
+    POSSIBLE_NODES_DYNAMIC_FEATURES = ['reachable_frac_agents']
 
-    POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
-                                'frac_current_load', 'arrivedepot_div_end_time',
-                                'frac_feasible_nodes']
+    POSSIBLE_AGENT_FEATURES = []
 
-    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
-                                    'frac_current_load', 'dist2depot_div_end_time',
-                                    'dist2agent_div_end_time', 'frac_feasible_nodes','time_delta2agent_div_max_dur', 'was_last']
+    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate', 'x_coordinate_min_max',
+                                      'y_coordinate_min_max', 'frac_current_time', 'frac_current_load',
+                                      'dist2depot_div_end_time', 'frac_feasible_nodes']
 
     POSSIBLE_GLOBAL_FEATURES = [ 'frac_profits', 'frac_demands', 'frac_fleet_load_capacity',
                                 'frac_done_agents']
@@ -353,7 +350,7 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['cur_agent']['action_mask'].sum(dim=1).unsqueeze(1)
         return feat / self.env.num_nodes
 
-    def get_feat_agents_dist2depot_div_end_time(self):
+    def get_feat_other_agents_dist2depot_div_end_time(self):
         """
         Fraction of current agent distance to depot compared to its end time.
 
@@ -399,7 +396,7 @@ class Observations(ObservationBuilder):
         feat = loc[:, :, 0]
         return feat
 
-    def get_feat_agents_y_coordinate_min_max(self):
+    def get_feat_other_agents_y_coordinate_min_max(self):
         """
         Agents min-max normalized Y location.
 
@@ -431,7 +428,7 @@ class Observations(ObservationBuilder):
         feat =  self.env.td_state['agents']['cur_load']
         return feat
 
-    def get_feat_agents_frac_feasible_nodes(self):
+    def get_feat_other_agents_frac_feasible_nodes(self):
         """
         Fraction of agents feasible nodes, in order to the total number of instance nodes.
 
@@ -526,5 +523,27 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['agents']['cur_load'].sum(dim=-1).unsqueeze(1)
         capacity = self.env.td_state['agents']['capacity']
         return feat / (capacity * self.env.num_agents)
+
+    ## Features added for consistency with the POSSIBLE_* lists
+
+    def get_feat_other_agents_frac_current_time(self):
+        """
+        Agents fraction of elapsed time.
+
+        Returns:
+            torch.Tensor: Agents fraction of elapsed time.
+        """
+        feats = self.env.td_state['agents']['cur_time'] / self.env.td_state['end_time'].unsqueeze(dim=-1)
+        return feats
+
+    def get_feat_global_frac_profits(self):
+        """
+        Fraction of profits.
+
+        Returns:
+            torch.Tensor: Fraction of profits.
+        """
+        feat = self.env.td_state['nodes']['cur_profits'].sum(dim=-1).unsqueeze(1)
+        return feat / self.env.td_state['profits'].sum(dim=-1).unsqueeze(1)
 
     # --------------------------------------------------------------------------------------

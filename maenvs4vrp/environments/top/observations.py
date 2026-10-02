@@ -32,8 +32,9 @@ class Observations(ObservationBuilder):
                                 'frac_current_profit', 'dist2agent_div_end_time', 'frac_feasible_nodes', 'frac_time_left',
                                 'time_delta2agent_div_max_dur', 'was_last']
 
-    POSSIBLE_ALL_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max',  'frac_current_time', 'frac_current_profit',
-                                    'remaining_capacity', 'was_last']
+    POSSIBLE_ALL_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate', 'x_coordinate_min_max',
+                                    'y_coordinate_min_max', 'frac_current_time', 'frac_current_profit',
+                                    'was_last']
 
     POSSIBLE_GLOBAL_FEATURES = ['frac_profits', 'frac_colect_profits', 'frac_done_agents']
 
@@ -448,5 +449,81 @@ class Observations(ObservationBuilder):
         """
         feat = self.env.td_state['agents']['cum_profit'].sum(dim=-1).unsqueeze(1)
         return feat /  self.env.td_state['profits'].sum(dim=-1).unsqueeze(1)
+
+    ## Features added for consistency with the POSSIBLE_* lists
+
+    def get_feat_other_agents_x_coordinate_min_max(self):
+        """
+        Agents min-max normalized X location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized X location.
+        """
+        ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
+        loc = ncoord.gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+        feat = loc[:, :, 0]
+        return feat
+
+    def get_feat_other_agents_y_coordinate_min_max(self):
+        """
+        Agents min-max normalized Y location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized Y location.
+        """
+        ncoord = self._min_max_normalization2d(self.env.td_state["coords"])
+        loc = ncoord.gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+        feat = loc[:, :, 1]
+        return feat
+
+    def get_feat_other_agents_dist2agent_div_end_time(self):
+        """
+        Agents distance to active agent divided by end time.
+
+        Returns:
+            torch.Tensor: Agents distance to active agent divided by end time.
+        """
+        locs = self.env.td_state["coords"].gather(1, self.env.td_state['agents']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+        loc = self.env.td_state['coords'].gather(1, self.env.td_state['cur_agent']['cur_node_idx'][:,:,None].expand(-1, -1, 2))
+
+        feat = torch.pairwise_distance(loc, locs, eps=0, keepdim = False)
+        return feat  / self.env.td_state['end_time'].unsqueeze(dim=-1)
+
+    def get_feat_other_agents_frac_feasible_nodes(self):
+        """
+        Fraction of agents feasible nodes, in order to the total number of instance nodes.
+
+        Returns:
+            torch.Tensor: Fraction of agents feasible nodes, in order to the total number of instance nodes.
+        """
+        feat = self.env.td_state['agents']['action_mask'].sum(dim=-1)
+        return feat / self.env.num_nodes
+
+    def get_feat_all_agents_x_coordinate_min_max(self):
+        """
+        Agents min-max normalized X location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized X location.
+        """
+        return self.get_feat_other_agents_x_coordinate_min_max()
+
+    def get_feat_all_agents_y_coordinate_min_max(self):
+        """
+        Agents min-max normalized Y location.
+
+        Returns:
+            torch.Tensor: Agents min-max normalized Y location.
+        """
+        return self.get_feat_other_agents_y_coordinate_min_max()
+
+    def get_feat_all_agents_was_last(self):
+        """
+        agents features
+
+        Returns:
+            torch.Tensor: Last agent performing an action.
+        """
+        return self.get_feat_other_agents_was_last()
 
     # --------------------------------------------------------------------------------------

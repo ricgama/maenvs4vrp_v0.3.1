@@ -449,7 +449,7 @@ class Observations(ObservationBuilder):
         feat = self.env.td_state['cur_agent']['action_mask'].sum(dim=1).unsqueeze(1)
         return feat / self.env.num_nodes
 
-    def get_feat_agents_dist2depot_div_end_time(self):
+    def get_feat_other_agents_dist2depot_div_end_time(self):
         """
         Fraction of current agent distance to depot compared to its end time.
 
@@ -615,8 +615,10 @@ class Observations(ObservationBuilder):
         Returns:
             torch.Tensor: Fraction of served demands.
         """
-        feat = self.env.td_state['nodes']['cur_demands'].sum(dim=-1).unsqueeze(1)
-        return feat / self.env.td_state['demands'].sum(dim=-1).unsqueeze(1)
+        # pickup demands are positive and delivery demands negative, so only pickups are counted
+        feat = self.env.td_state['nodes']['cur_demands'].clamp(min=0).sum(dim=-1).unsqueeze(1)
+        total = self.env.td_state['demands'].clamp(min=0).sum(dim=-1).unsqueeze(1)
+        return torch.where(total > 0, feat / total.clamp(min=1e-9), torch.zeros_like(feat))
 
     def get_feat_global_frac_fleet_load_capacity(self):
         """

@@ -13,16 +13,16 @@ class Observations(ObservationBuilder):
     HCVRP observations class.
     """
 
-    POSSIBLE_NODES_STATIC_FEATURES = ['x_coordinate', 'y_coordinate', 'demand', 'service_time',
-                                    'x_coordinate_min_max', 'y_coordinate_min_max', 'is_depot']
+    POSSIBLE_NODES_STATIC_FEATURES = ['x_coordinate', 'y_coordinate', 'demand', 'x_coordinate_min_max',
+                                      'y_coordinate_min_max', 'is_depot']
 
-    POSSIBLE_NODES_DYNAMIC_FEATURES = [ 'arrive2node_div_end_time', 'reachable_frac_agents']
+    POSSIBLE_NODES_DYNAMIC_FEATURES = ['reachable_frac_agents']
 
     POSSIBLE_AGENT_FEATURES = ['x_coordinate', 'y_coordinate', 'remaining_capacity', 'frac_feasible_nodes']
 
-    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate','x_coordinate_min_max', 'y_coordinate_min_max', 'frac_current_time',
-                                    'frac_current_load', 'dist2depot_div_end_time',
-                                    'dist2agent_div_end_time', 'frac_feasible_nodes','time_delta2agent_div_max_dur', 'was_last']
+    POSSIBLE_OTHER_AGENTS_FEATURES = ['x_coordinate', 'y_coordinate', 'x_coordinate_min_max',
+                                      'y_coordinate_min_max', 'frac_current_load', 'frac_feasible_nodes',
+                                      'was_last']
 
     POSSIBLE_GLOBAL_FEATURES = ['frac_fleet_load_capacity', 'frac_done_agents']
 
@@ -359,7 +359,7 @@ class Observations(ObservationBuilder):
         feat = loc[:, :, 0]
         return feat
 
-    def get_feat_agents_y_coordinate_min_max(self):
+    def get_feat_other_agents_y_coordinate_min_max(self):
         """
         Agents min-max normalized Y location.
 
@@ -391,7 +391,7 @@ class Observations(ObservationBuilder):
         feat =  self.env.td_state['agents']['cur_load']
         return feat
 
-    def get_feat_agents_frac_feasible_nodes(self):
+    def get_feat_other_agents_frac_feasible_nodes(self):
         """
         Fraction of agents feasible nodes, in order to the total number of instance nodes.
 
