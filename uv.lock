@@ -1422,7 +1422,7 @@ wheels = [
 
 [[package]]
 name = "maenvs4vrp"
-version = "0.3"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "huggingface-hub" },

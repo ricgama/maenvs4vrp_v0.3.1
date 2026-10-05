@@ -25,7 +25,7 @@ for notebook in glob.glob(os.path.join(NOTEBOOKS_SRC, '*.ipynb')):
 project = 'maenvs4vrp'
 copyright = '2026, maenvs4vrp'
 author = 'maenvs4vrp'
-release = '0.3.0'
+release = '0.3.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
