@@ -228,7 +228,7 @@ class ToyInstanceGenerator(InstanceBuilder):
             speed (float, optional): Vehicles' speed. Defaults to 1.0.
             profits (str, optional): Type of profits to use. It can be 'constant', 'uniform' or 'distance'. Defaults to "uniform".
             instance_name (str, optional): Instance name. Defaults to None.
-            sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
+            sample_type (str, optional): Sample type. It can only be "random". Defaults to "random".
             batch_size (torch.Size, optional): Batch size. Defaults to None.
             n_augment (int, optional): Number of augmented copies of each instance (``batch_size`` must be divisible by it). Defaults to None.
             seed (int, optional): Random number generator seed. Defaults to None.
@@ -237,6 +237,9 @@ class ToyInstanceGenerator(InstanceBuilder):
 
         Returns:
             Dict: Instance data.
+
+        Raises:
+            ValueError: If ``sample_type`` is not "random".
         """
         if seed is not None:
             self._set_seed(seed)
@@ -277,6 +280,8 @@ class ToyInstanceGenerator(InstanceBuilder):
                 seed=seed,
                 device=device
             )
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random'.")
 
         return instance_info
 

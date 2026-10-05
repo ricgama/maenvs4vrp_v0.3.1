@@ -173,6 +173,7 @@ class ToyInstanceGenerator(InstanceBuilder):
         batch_size: int = 1,
         seed: int = None,
         device: Optional[str] = "cpu",
+        sample_type: str = "random",
         **kwargs
     ) -> TensorDict:
 
@@ -191,11 +192,18 @@ class ToyInstanceGenerator(InstanceBuilder):
             batch_size (int, optional): Batch size. Defaults to 1.
             seed (int, optional): Random number generator seed. Defaults to None.
             device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
+            sample_type (str, optional): Sample type. It can only be "random". Defaults to "random".
             **kwargs: Extra keyword arguments accepted for API compatibility; ignored.
 
         Returns:
             TensorDict: Instance data.
+
+        Raises:
+            ValueError: If ``sample_type`` is not "random".
         """
+
+        if sample_type != "random":
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random'.")
 
         if seed is not None:
             self._set_seed(seed)

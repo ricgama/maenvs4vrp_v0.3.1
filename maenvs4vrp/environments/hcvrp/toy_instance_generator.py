@@ -190,13 +190,16 @@ class ToyInstanceGenerator(InstanceBuilder):
             num_agents (int, optional): Total number of agents. Defaults to 4.
             num_nodes (int, optional): Total number of nodes. Defaults to 13.
             instance_name (str, optional): Instance name. Defaults to None.
-            sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
+            sample_type (str, optional): Sample type. It can be "random" or "saved". Defaults to "random".
             batch_size (int, optional): Batch size. Defaults to None.
             seed (int, optional): Random number generator seed. Defaults to None.
             **kwargs: Extra keyword arguments accepted for API compatibility; ignored.
 
         Returns:
             Dict: Instance data.
+
+        Raises:
+            ValueError: If ``sample_type`` is not "random" or "saved".
         """
 
 
@@ -243,7 +246,7 @@ class ToyInstanceGenerator(InstanceBuilder):
                 instance_name = self.sample_name_from_set(seed=seed)
             return self._complete_instance(self.get_instance(instance_name, num_agents=num_agents))
 
-        raise ValueError(f"Unknown sample_type: {sample_type}")
+        raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random' or 'saved'.")
 
     def _complete_instance(self, instance_info: Dict) -> Dict:
         """

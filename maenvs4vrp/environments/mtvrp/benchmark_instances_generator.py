@@ -38,7 +38,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Get list of possible instances from benchmark files.
 
         Returns:
-            dict: Keys 'Solomon' and 'Homberger'; values are lists of instance.
+            dict: Keys '50_test', '100_test', '50_validation' and '100_validation'; values are lists of instance
                   name strings, or empty lists when data is not available locally.
         """
 
@@ -138,7 +138,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             problem_type (set, optional): Problem type. Defaults to "all".
             instance_type (str, optional): Instance type. It must be "50_test", "100_test", "50_validation" or "100_validation". Defaults to None.
             set_of_instances (set, optional): Set of instances file names. Defaults to None.
-            instance_name (str, optional): Instance name. Can be "Solomon" or "Homberger". Defaults to None.
+            instance_name (str, optional): Alias of ``instance_type``. Defaults to None.
             list_of_instances (list, optional): List of instances file names. Defaults to None.
             device (str, optional): Device for tensor operations, e.g. "cpu" or "cuda". Defaults to "cpu".
             batch_size (torch.Size, optional): Batch size. Defaults to 1000.
@@ -488,7 +488,7 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         Sample one instance from instance space.
 
         Args:
-            sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "random".
+            sample_type (str, optional): Sample type. It can be "random" or "saved". Defaults to "random".
             instance_name (str, optional): Instance name. Defaults to None.
             num_agents (int, optional): Total number of agents. Defaults to None.
             num_nodes (int, optional): Total number of nodes. Defaults to None.
@@ -517,6 +517,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
 
         Returns:
             Dict: Instance data.
+
+        Raises:
+            ValueError: If ``sample_type`` is not "random" or "saved".
         """
         if seed is not None:
             self._set_seed(seed)
@@ -631,7 +634,9 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                                                     batch_size = batch_size,
                                                     seed = seed,
                                                     device = device)
-        else:
+        elif sample_type=='saved':
             instance = self.get_instance(instance_name, num_agents=num_agents)
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'random' or 'saved'.")
 
         return instance

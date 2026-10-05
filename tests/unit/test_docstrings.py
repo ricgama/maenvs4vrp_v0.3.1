@@ -68,3 +68,35 @@ def test_docstrings(path):
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     problems += check_function(item, f"{node.name}.{item.name}")
     assert not problems, f"{path.relative_to(REPO_DIR)}:\n  " + "\n  ".join(problems)
+
+
+BENCHMARK_FILES = sorted(PKG_DIR.glob("*/*/benchmark_instances_generator.py"))
+
+
+def accepted_set_names(cls: ast.ClassDef) -> set[str]:
+    """Set names accepted by a benchmark generator: its `assert instance_* in [...]`, else the keys it returns."""
+    methods = {m.name: m for m in cls.body if isinstance(m, ast.FunctionDef)}
+    for node in ast.walk(methods["__init__"]):
+        if (isinstance(node, ast.Compare) and isinstance(node.left, ast.Name)
+                and node.left.id in ("instance_name", "instance_type")
+                and isinstance(node.ops[0], ast.In) and isinstance(node.comparators[0], ast.List)):
+            return {e.value for e in node.comparators[0].elts}
+    return {k.value for node in ast.walk(methods["get_list_of_instances"])
+            if isinstance(node, ast.Return) and isinstance(node.value, ast.Dict)
+            for k in node.value.keys if isinstance(k, ast.Constant)}
+
+
+@pytest.mark.parametrize("path", BENCHMARK_FILES, ids=[p.parent.parent.name[:3] + "-" + p.parent.name for p in BENCHMARK_FILES])
+def test_benchmark_set_names_documented(path):
+    cls = next(n for n in ast.parse(path.read_text()).body
+               if isinstance(n, ast.ClassDef) and n.name == "BenchmarkInstanceGenerator")
+    methods = {m.name: m for m in cls.body if isinstance(m, ast.FunctionDef)}
+    accepted = accepted_set_names(cls)
+    assert accepted
+    keys = re.search(r"Keys (.*?);", ast.get_docstring(methods["get_list_of_instances"]))
+    assert keys and set(re.findall(r"'([^']+)'", keys.group(1))) == accepted
+    init_doc = ast.get_docstring(methods["__init__"])
+    documented = set()
+    for line in re.findall(r"^\s+instance_(?:name|type) \(str, optional\): (.*)$", init_doc, re.M):
+        documented |= set(re.findall(r'"([^"]+)"', line.split("Defaults to")[0]))
+    assert documented == accepted

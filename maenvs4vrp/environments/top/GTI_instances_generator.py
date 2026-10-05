@@ -336,13 +336,17 @@ class GTIGenerator(InstanceBuilder):
             speed (float, optional): Vehicles' speed. Defaults to None.
             profits (str, optional): Type of profits to use. It can be 'constant', 'uniform' or 'distance'. Defaults to "constant".
             instance_name (str, optional): instance name. Defaults to None.
-            sample_type (str, optional): Sample type. It can be "random", "augment" or "saved". Defaults to "saved".
+            sample_type (str, optional): Sample type. It can only be "saved" ("random" and "augment" are not implemented). Defaults to "saved".
             batch_size (torch.Size, optional): Batch size. Defaults to None.
             n_augment (int, optional): Number of augmented copies of each instance (``batch_size`` must be divisible by it). Defaults to None.
             seed (int, optional): Random number generator seed. Defaults to None.
 
         Returns:
             Dict: Instance data.
+
+        Raises:
+            ValueError: If ``sample_type`` is not "saved".
+            NotImplementedError: If ``sample_type`` is "random" or "augment".
         """
         if seed is not None:
             self._set_seed(seed)
@@ -379,6 +383,8 @@ class GTIGenerator(InstanceBuilder):
             raise NotImplementedError()
         elif sample_type=='saved':
             instance_info = self.get_instance(instance_name, num_agents=num_agents)
+        else:
+            raise ValueError(f"Unknown sample_type '{sample_type}'. Expected 'saved'.")
 
         return instance_info
 
