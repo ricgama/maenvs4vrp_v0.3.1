@@ -40,7 +40,8 @@ refactor duplicated code into shared helpers. Instead, keep every folder structu
   Known legacy exception: `hcvrp` uses `demand` / `capacity`.
 - When fixing a bug or changing an API in one environment, apply the same change to **every** environment
   that has the same code (grep for it) and to the matching `docs/source/<group>/<problem>/` pages.
-- Generators must raise `ValueError` for an unknown `sample_type`, and random generation must work offline.
+- Every generator (instance, toy, benchmark, GTI) must raise `ValueError` for an unknown `sample_type`
+  (`tests/unit/test_generators.py`), and random generation must work offline.
 
 ## Environment & commands
 - Python >= 3.11. Development conda env: `maenvs4vrp`
@@ -62,9 +63,14 @@ refactor duplicated code into shared helpers. Instead, keep every folder structu
 - Bibliography: cite with `[Key]_` and add entries only to `docs/source/content/references.rst`.
 
 ## Benchmark data
-Benchmark instances are downloaded on demand from the Hugging Face dataset `MAL4VRP/maenvs4vrp`
-into `maenvs4vrp/environments/<problem>/data/`. These folders are git-ignored; never commit data,
-`docs/build/`, `dist/`, `*.egg-info` or `__pycache__`.
+Benchmark and saved instances are downloaded on demand from Hugging Face datasets into
+`maenvs4vrp/<group>/<problem>/data/`:
+- `ai4co/routefinder`: the `mtvrp`, `mtdvrp`, `gmtvrp` and `gmtdvrp` benchmark generators.
+- `ai4co/parco`: the `hcvrp` benchmark generator.
+- `maenvs4vrp/environments` (`HF_REPO_ID`): every other generator.
+
+These folders are git-ignored; never commit data, `docs/build/`, `dist/`, `*.egg-info` or `__pycache__`.
+When a dataset moves, update the generators and this section together.
 
 ## Code style
 - Match the surrounding code: 4-space indentation, snake_case functions, PascalCase classes,
