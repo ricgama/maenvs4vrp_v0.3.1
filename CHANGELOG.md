@@ -49,7 +49,8 @@ reproducing published experiments.
 ### Packaging and repository
 - `setup.py` and `pytest.ini` are removed; all settings are in `pyproject.toml`.
   Install with `pip install -e ".[dev,docs]"`.
-- New `[notebooks]` extra; `pyyaml` and `packaging` are declared dependencies.
+- New `[notebooks]` extra; `pyyaml` and `packaging` are declared dependencies;
+  the `[docs]` extra and `docs/requirements.txt` include `ipython`.
 - Generated files and downloaded benchmark data are no longer tracked. The
   mtvrp/mtdvrp RouteFinder instances are downloaded from `ai4co/routefinder` on
   first use of their `BenchmarkInstanceGenerator`.

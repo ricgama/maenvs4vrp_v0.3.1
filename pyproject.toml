@@ -63,6 +63,7 @@ docs = [
     "nbsphinx>=0.9.5",
     "furo>=2024.8.6",
     "sphinx-copybutton>=0.5.2",
+    "ipython>=8.0",  # Pygments lexer for the notebook code cells (ipython3)
 ]
 notebooks = [
     "jupyter>=1.0.0",
