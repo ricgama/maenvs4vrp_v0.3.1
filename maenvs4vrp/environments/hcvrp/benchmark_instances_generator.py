@@ -3,6 +3,7 @@ import os
 from os import path
 import shutil
 import logging
+import warnings
 import torch
 import numpy as np
 from tensordict import TensorDict
@@ -34,12 +35,16 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                   name strings, or empty lists when data is not available locally.
         """
 
-        cls.download_and_copy_instances()
+        try:
+            cls.download_and_copy_instances()
+        except Exception as e:  # offline or Hugging Face unreachable: list what is available locally
+            warnings.warn(f"Benchmark instances could not be downloaded ({type(e).__name__}); "
+                          "only the instances available locally are listed.", RuntimeWarning)
 
         base_dir = path.dirname(path.dirname(path.abspath(__file__)))
         full_dir = path.join(base_dir, BENCHMARK_INSTANCES_PATH)
 
-        files = [f for f in os.listdir(full_dir) if f.endswith(".npz")]
+        files = [f for f in os.listdir(full_dir) if f.endswith(".npz")] if path.isdir(full_dir) else []
 
         return {
             "instances": [

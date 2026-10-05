@@ -15,6 +15,7 @@ from huggingface_hub import hf_hub_download
 import shutil
 
 import logging
+import warnings
 
 BENCHMARK_INSTANCES_PATH = 'gmtvrp/data/benchmark'
 
@@ -42,7 +43,11 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
                   name strings, or empty lists when data is not available locally.
         """
 
-        cls.download_and_copy_instances()
+        try:
+            cls.download_and_copy_instances()
+        except Exception as e:  # offline or Hugging Face unreachable: list what is available locally
+            warnings.warn(f"Benchmark instances could not be downloaded ({type(e).__name__}); "
+                          "only the instances available locally are listed.", RuntimeWarning)
 
         dataset = ['50_test', '100_test','50_validation', '100_validation']
         base_dir = path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,6 +57,8 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
             numb, settype = pset.split('_')
             for problem in VARIANT_PRESETS:
                 full_dir = path.join(base_dir, BENCHMARK_INSTANCES_PATH, problem)
+                if not path.isdir(os.path.join(full_dir, settype)):
+                    continue
 
                 data_dir = os.listdir(os.path.join(full_dir, settype))
                 data_files += [BENCHMARK_INSTANCES_PATH+'/'+problem+'/'+settype+'/'+item.split('.')[0] for item in data_dir if numb in item]
@@ -91,31 +98,27 @@ class BenchmarkInstanceGenerator(InstanceBuilder):
         direct = "data/benchmark"
         directory_to_be_created = os.path.join(base_dir, env, direct)
 
-        if os.path.isdir(directory_to_be_created):
-            cls.check_instance_folders(base_dir, env)
+        # download every missing file, so an interrupted download is completed on the next call
+        logged = False
+        for variant in VARIANT_PRESETS:
+            for instance_type in ['val', 'test']:
+                for instance_name in ['100.npz', '50.npz']:
+                    instance_type_2 = "validation" if instance_type == "val" else "test"
+                    full_directory = os.path.join(base_dir, env, f"data/benchmark/{variant}/{instance_type_2}")
+                    if os.path.isfile(os.path.join(full_directory, instance_name)):
+                        continue
+                    if not logged:
+                        log.warning(f"Downloading benchmark files from HuggingFace to {directory_to_be_created}...")
+                        logged = True
 
-        if not (os.path.isdir(directory_to_be_created)):
-            os.makedirs(directory_to_be_created)
+                    file_path = hf_hub_download(
+                        repo_id="ai4co/routefinder",
+                        repo_type="dataset",
+                        filename=f"data/{variant}/{instance_type}/{instance_name}"
+                    )
 
-            log.warning(f"Downloading benchmark files from HuggingFace to {directory_to_be_created}...")
-
-            for variant in VARIANT_PRESETS:
-                for instance_type in ['val', 'test']:
-                    for instance_name in ['100.npz', '50.npz']:
-                        fname=f"data/{variant}/{instance_type}/{instance_name}"
-
-                        file_path = hf_hub_download(
-                            repo_id="ai4co/routefinder",
-                            repo_type="dataset",
-                            filename=fname
-                        )
-
-                        instance_type_2 = "validation" if instance_type == "val" else "test"
-
-                        full_directory = os.path.join(base_dir, env, f"data/benchmark/{variant}/{instance_type_2}")
-                        if not (os.path.isdir(full_directory)):
-                            os.makedirs(full_directory)
-                        shutil.copy(file_path, full_directory)
+                    os.makedirs(full_directory, exist_ok=True)
+                    shutil.copy(file_path, full_directory)
 
     def __init__(
         self,
